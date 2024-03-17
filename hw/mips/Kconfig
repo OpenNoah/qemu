@@ -10,6 +10,20 @@ config MIPSSIM
     select SERIAL_ISA
     select MIPSNET
 
+config IRIVER_D88
+    bool
+    select ISA_BUS
+    select SERIAL_ISA
+    select INGENIC_JZ4755
+
+config INGENIC_JZ4740
+    bool
+    select INGENIC_CGU
+
+config INGENIC_JZ4755
+    bool
+    select INGENIC_CGU
+
 config JAZZ
     bool
     select ISA_BUS
