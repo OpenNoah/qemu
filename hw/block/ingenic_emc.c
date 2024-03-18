@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
+#include "exec/address-spaces.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
@@ -74,6 +75,9 @@ static uint64_t ingenic_emc_read(void *opaque, hwaddr addr, unsigned size)
     case 0x40:
         data = emc->SACR[(aligned_addr - 0x34) / 4];
         break;
+    case 0x50:
+        data = emc->NFCSR;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "EMC read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
         qmp_stop(NULL);
@@ -111,6 +115,9 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case 0x40:
         emc->SACR[(aligned_addr - 0x34) / 4] = data & 0x0000ffff;
         break;
+    case 0x50:
+        emc->NFCSR = data & 0xff;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "EMC write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
         qmp_stop(NULL);
@@ -128,10 +135,10 @@ static void ingenic_emc_init(Object *obj)
 {
     qemu_log("%s enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IngenicEmc *s = INGENIC_EMC(obj);
+    IngenicEmc *emc = INGENIC_EMC(obj);
 
-    memory_region_init_io(&s->mr, OBJECT(s), &emc_ops, s, "emc", 0x10000);
-    sysbus_init_mmio(sbd, &s->mr);
+    memory_region_init_io(&emc->emc_mr, OBJECT(emc), &emc_ops, emc, "emc", 0x10000);
+    sysbus_init_mmio(sbd, &emc->emc_mr);
 
     qemu_log("%s end\n", __func__);
 }
@@ -141,8 +148,32 @@ static void ingenic_emc_finalize(Object *obj)
     qemu_log("%s enter\n", __func__);
 }
 
+static void ingenic_emc_realize(DeviceState *dev, Error **errp)
+{
+    IngenicEmc *emc = INGENIC_EMC(dev);
+    MemoryRegion *sys_mem = get_system_memory();
+    // Add SDRAM regions, but disabled for now
+    memory_region_init_ram(&emc->sdram_mr, OBJECT(emc), "sdram",
+                           emc->sdram_size, &error_fatal);
+    memory_region_set_enabled(&emc->sdram_mr, false);
+    memory_region_add_subregion(sys_mem, 0x20000000, &emc->sdram_mr);
+    memory_region_init_alias(&emc->origin_mr, OBJECT(emc), "sdram.origin",
+                             &emc->sdram_mr, 0, 0x08000000);
+    memory_region_add_subregion(sys_mem, 0x00000000, &emc->origin_mr);
+    memory_region_set_enabled(&emc->origin_mr, false);
+}
+
+static Property ingenic_emc_properties[] = {
+    DEFINE_PROP_UINT32("sdram-size", IngenicEmc, sdram_size, 32 * 1024 * 1024),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_emc_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+    dc->realize = &ingenic_emc_realize;
+    device_class_set_props(dc, ingenic_emc_properties);
+
     IngenicEmcClass *emc_class = INGENIC_EMC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
