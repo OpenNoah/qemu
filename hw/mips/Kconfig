@@ -25,10 +25,12 @@ config IRIVER_D88
 config INGENIC_JZ4740
     bool
     select INGENIC_CGU
+    select INGENIC_EMC
 
 config INGENIC_JZ4755
     bool
     select INGENIC_CGU
+    select INGENIC_EMC
 
 config JAZZ
     bool
