@@ -47,6 +47,7 @@
 #include "qemu/log.h"
 
 #include "hw/misc/ingenic_cgu.h"
+#include "hw/block/ingenic_emc.h"
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -85,6 +86,12 @@ static MIPSCPU *jz4755_init()
     memory_region_init_io(ahb0, NULL, NULL, NULL, "ahb0", 0x00090000);
     memory_region_add_subregion(get_system_memory(), 0x13000000, ahb0);
 
+    // Register EMC on AHB0 bus
+    IngenicEmc *emc = INGENIC_EMC(qdev_new(TYPE_INGENIC_EMC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(emc), &error_fatal);
+    MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
+    memory_region_add_subregion(ahb0, 0x00010000, emc_mr);
+
     /* Register AHB1 IO space at 0x13090000. */
     memory_region_init_io(ahb1, NULL, NULL, NULL, "ahb1", 0x00070000);
     memory_region_add_subregion(get_system_memory(), 0x13090000, ahb1);
@@ -94,8 +101,8 @@ static MIPSCPU *jz4755_init()
     memory_region_add_subregion(get_system_memory(), 0x10000000, apb);
 
     /* Register CGU on APB bus */
-    MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
-    memory_region_add_subregion(apb, 0, mr);
+    MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
+    memory_region_add_subregion(apb, 0, cgu_mr);
 
     /* Initialise 16550 UART0 at APB 0x00030000 interrupt ? */
     serial_mm_init(apb, 0x00030000, 2, env->irq[4],
