@@ -64,7 +64,7 @@ static void main_cpu_reset(void *opaque)
     env->active_tc.PC = s->vector & ~(target_ulong)1;
 }
 
-static MIPSCPU *jz4755_init()
+static MIPSCPU *jz4755_init(MachineState *machine)
 {
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -72,11 +72,11 @@ static MIPSCPU *jz4755_init()
     /* Needs to have clocks first */
     IngenicCgu *cgu = INGENIC_CGU(qdev_new(TYPE_INGENIC_CGU));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(cgu), &error_fatal);
-    //qdev_connect_clock_in(DEVICE(cpu), "clk-in", qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
 
     /* Init CPUs. */
     printf("%s cpu clock\n", __func__);
-    cpu = mips_cpu_create_with_clock("XBurstR1-mips-cpu", qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
+    // machine->cpu_type = "XBurstR1-mips-cpu";
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
     env = &cpu->env;
 
     MemoryRegion *ahb0 = g_new(MemoryRegion, 1);
@@ -89,6 +89,7 @@ static MIPSCPU *jz4755_init()
 
     // Register EMC on AHB0 bus
     IngenicEmc *emc = INGENIC_EMC(qdev_new(TYPE_INGENIC_EMC));
+    object_property_set_uint(OBJECT(emc), "sdram-size", machine->ram_size, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(emc), &error_fatal);
     MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
     memory_region_add_subregion(ahb0, 0x00010000, emc_mr);
@@ -142,8 +143,11 @@ static void mips_iriver_d88_init(MachineState *machine)
     ResetData *reset_info;
     int bootrom_size;
 
+    // Board-specific parameters
+    //machine->ram_size = 64 * 1024 * 1024;
+
     /* Init CPUs. */
-    cpu = jz4755_init();
+    cpu = jz4755_init(machine);
     env = &cpu->env;
 
     reset_info = g_new0(ResetData, 1);
