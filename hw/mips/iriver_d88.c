@@ -48,6 +48,7 @@
 
 #include "hw/misc/ingenic_cgu.h"
 #include "hw/block/ingenic_emc.h"
+#include "hw/gpio/ingenic_gpio.h"
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -103,6 +104,14 @@ static MIPSCPU *jz4755_init()
     /* Register CGU on APB bus */
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
+
+    // Register GPIOs on APB bus
+    for (int i = 0; i < 6; i++) {
+        IngenicGpio *gpio = INGENIC_GPIO(qdev_new(TYPE_INGENIC_GPIO));
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio), &error_fatal);
+        MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio), 0);
+        memory_region_add_subregion(apb, 0x00010000 + i * 0x0100, gpio_mr);
+    }
 
     /* Initialise 16550 UART0 at APB 0x00030000 interrupt ? */
     serial_mm_init(apb, 0x00030000, 2, env->irq[4],
