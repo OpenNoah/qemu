@@ -30,12 +30,19 @@ OBJECT_DECLARE_TYPE(IngenicEmc, IngenicEmcClass, INGENIC_EMC)
 typedef struct IngenicEmc {
     SysBusDevice parent_obj;
 
-    MemoryRegion mr;
+    MemoryRegion emc_mr;
+    MemoryRegion origin_mr;
+    MemoryRegion sdram_mr;
+    MemoryRegion static_mr[4];
+
+    // Properties
+    uint32_t sdram_size;
 
     // Registers
     uint32_t BCR;
     uint32_t SMCR[4];
     uint32_t SACR[4];
+    uint32_t NFCSR;
 } IngenicEmc;
 
 typedef struct IngenicEmcClass
