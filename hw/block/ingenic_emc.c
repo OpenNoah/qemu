@@ -121,7 +121,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 static MemoryRegionOps emc_ops = {
     .read = ingenic_emc_read,
     .write = ingenic_emc_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ingenic_emc_init(Object *obj)
