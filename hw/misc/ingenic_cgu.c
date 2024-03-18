@@ -154,7 +154,7 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 static MemoryRegionOps cgu_ops = {
     .read = ingenic_cgu_read,
     .write = ingenic_cgu_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ingenic_cgu_init(Object *obj)
