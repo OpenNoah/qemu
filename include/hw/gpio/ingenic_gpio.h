@@ -26,12 +26,18 @@
 #define TYPE_INGENIC_GPIO "ingenic-gpio"
 OBJECT_DECLARE_TYPE(IngenicGpio, IngenicGpioClass, INGENIC_GPIO)
 
+typedef struct IngenicGpioIrqData {
+    IngenicGpio *gpio;
+    uint32_t port;
+} IngenicGpioIrqData;
+
 typedef struct IngenicGpio {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
     MemoryRegion mr;
+    char *name;
 
     // Registers
     uint32_t pin;
@@ -45,7 +51,6 @@ typedef struct IngenicGpio {
     uint32_t flg;
 
     // IRQs
-    qemu_irq irq[2];
     qemu_irq output[32];
 } IngenicGpio;
 
