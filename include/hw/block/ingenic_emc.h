@@ -45,6 +45,9 @@ typedef struct IngenicEmc {
 
     NandOpData nand_io_data[4];
 
+    // GPIO
+    qemu_irq io_nand_rb;
+
     // Properties
     uint32_t sdram_size;
 
