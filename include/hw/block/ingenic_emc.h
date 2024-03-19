@@ -27,6 +27,13 @@
 #define TYPE_INGENIC_EMC "ingenic-emc"
 OBJECT_DECLARE_TYPE(IngenicEmc, IngenicEmcClass, INGENIC_EMC)
 
+extern MemoryRegionOps nand_io_ops;
+
+typedef struct NandOpData {
+    IngenicEmc *emc;
+    uint32_t bank;
+} NandOpData;
+
 typedef struct IngenicEmc {
     SysBusDevice parent_obj;
 
@@ -34,6 +41,9 @@ typedef struct IngenicEmc {
     MemoryRegion origin_mr;
     MemoryRegion sdram_mr;
     MemoryRegion static_mr[4];
+    MemoryRegion nand_io_mr[4];
+
+    NandOpData nand_io_data[4];
 
     // Properties
     uint32_t sdram_size;

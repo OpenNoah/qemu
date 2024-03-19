@@ -117,6 +117,11 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case 0x50:
         emc->NFCSR = data & 0xff;
+        for (int bank = 0; bank < 4; bank++) {
+            memory_region_set_enabled(&emc->nand_io_mr[bank], emc->NFCSR & BIT(bank * 2));
+            qemu_log("EMC NAND bank %"PRIu32": %s\n", bank + 1,
+                     emc->NFCSR & BIT(bank * 2) ? "enabled" : "disabled");
+        }
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "EMC write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
@@ -152,15 +157,28 @@ static void ingenic_emc_realize(DeviceState *dev, Error **errp)
 {
     IngenicEmc *emc = INGENIC_EMC(dev);
     MemoryRegion *sys_mem = get_system_memory();
+
     // Add SDRAM regions, but disabled for now
     memory_region_init_ram(&emc->sdram_mr, OBJECT(emc), "sdram",
                            emc->sdram_size, &error_fatal);
     memory_region_set_enabled(&emc->sdram_mr, false);
     memory_region_add_subregion(sys_mem, 0x20000000, &emc->sdram_mr);
+
     memory_region_init_alias(&emc->origin_mr, OBJECT(emc), "sdram.origin",
                              &emc->sdram_mr, 0, 0x08000000);
-    memory_region_add_subregion(sys_mem, 0x00000000, &emc->origin_mr);
     memory_region_set_enabled(&emc->origin_mr, false);
+    memory_region_add_subregion(sys_mem, 0x00000000, &emc->origin_mr);
+
+    // Add NAND IO regions, but disabled for now
+    static const uint32_t nand_bank_addr[] = {
+        0x18000000, 0x14000000, 0x0c000000, 0x08000000,
+    };
+    for (int bank = 0; bank < 4; bank++) {
+        memory_region_init_io(&emc->nand_io_mr[bank], OBJECT(emc),
+                              &nand_io_ops, &emc->nand_io_data[bank], "nand.io", 0x00100000);
+        memory_region_set_enabled(&emc->nand_io_mr[bank], false);
+        memory_region_add_subregion(sys_mem, nand_bank_addr[bank], &emc->nand_io_mr[bank]);
+    }
 }
 
 static Property ingenic_emc_properties[] = {
