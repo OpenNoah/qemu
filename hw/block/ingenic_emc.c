@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
@@ -145,6 +146,9 @@ static void ingenic_emc_init(Object *obj)
     memory_region_init_io(&emc->emc_mr, OBJECT(emc), &emc_ops, emc, "emc", 0x10000);
     sysbus_init_mmio(sbd, &emc->emc_mr);
 
+    qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
+    qemu_irq_raise(emc->io_nand_rb);
+
     qemu_log("%s end\n", __func__);
 }
 
@@ -174,6 +178,7 @@ static void ingenic_emc_realize(DeviceState *dev, Error **errp)
         0x18000000, 0x14000000, 0x0c000000, 0x08000000,
     };
     for (int bank = 0; bank < 4; bank++) {
+        emc->nand_io_data[bank].emc = emc;
         memory_region_init_io(&emc->nand_io_mr[bank], OBJECT(emc),
                               &nand_io_ops, &emc->nand_io_data[bank], "nand.io", 0x00100000);
         memory_region_set_enabled(&emc->nand_io_mr[bank], false);

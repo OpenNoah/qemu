@@ -135,6 +135,11 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     cpu_mips_irq_init_cpu(cpu);
     cpu_mips_clock_init(cpu);
 
+    // Connect GPIOs
+    // PC27: NAND RB
+    qemu_irq nand_rb = qdev_get_gpio_in_named(DEVICE(gpio[2]), "in", 27);
+    qdev_connect_gpio_out_named(DEVICE(emc), "nand-rb", 0, nand_rb);
+
     return cpu;
 }
 
