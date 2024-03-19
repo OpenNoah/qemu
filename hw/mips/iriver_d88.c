@@ -38,6 +38,7 @@
 #include "hw/boards.h"
 #include "hw/mips/bios.h"
 #include "hw/loader.h"
+#include "hw/irq.h"
 #include "elf.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
@@ -107,10 +108,14 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     memory_region_add_subregion(apb, 0, cgu_mr);
 
     // Register GPIOs on APB bus
+    IngenicGpio *gpio[6];
     for (int i = 0; i < 6; i++) {
-        IngenicGpio *gpio = INGENIC_GPIO(qdev_new(TYPE_INGENIC_GPIO));
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio), &error_fatal);
-        MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio), 0);
+        char name[] = "PA";
+        name[1] = 'A' + i;
+        gpio[i] = INGENIC_GPIO(qdev_new(TYPE_INGENIC_GPIO));
+        object_property_set_str(OBJECT(gpio[i]), "name", name, &error_fatal);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio[i]), &error_fatal);
+        MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio[i]), 0);
         memory_region_add_subregion(apb, 0x00010000 + i * 0x0100, gpio_mr);
     }
 
