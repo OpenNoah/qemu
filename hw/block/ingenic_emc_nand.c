@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
@@ -51,7 +52,6 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     IngenicEmc *emc = opdata->emc;
     uint32_t bank = opdata->bank;
 
-    (void)emc;
     (void)bank;
 
     qemu_log("EMC NAND write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
@@ -77,6 +77,8 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
         uint8_t cmd = data;
         switch (cmd) {
         case CMD_RESET:
+            qemu_irq_lower(emc->io_nand_rb);
+            qemu_irq_raise(emc->io_nand_rb);
             break;
         default:
             qmp_stop(NULL);
