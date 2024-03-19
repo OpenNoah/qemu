@@ -82,14 +82,13 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 0x80:
         data = gpio->flg;
-        qmp_stop(NULL);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "GPIO read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    qemu_log("GPIO read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx32"\n", addr, (uint32_t)size, data);
+    qemu_log("GPIO %s read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx32"\n", gpio->name, addr, (uint32_t)size, data);
     return data;
 }
 
@@ -104,12 +103,14 @@ static void ingenic_gpio_write(void *opaque, hwaddr addr, uint64_t data, unsigne
 
     IngenicGpio *gpio = opaque;
     hwaddr aligned_addr = addr; // & ~3;
-    qemu_log("GPIO write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    qemu_log("GPIO %s write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", gpio->name, addr, (uint32_t)size, data);
     switch (aligned_addr) {
     case 0x14:
         gpio->dat |= data;
-        // TODO Only clear when in interrupt mode
-        gpio->flg &= ~data;
+        // Only clear flags when in interrupt mode
+        gpio->flg &= ~(~gpio->fun & gpio->sel & data);
+        // Update level triggered interrupt states
+        gpio->flg |= ~gpio->fun & gpio->sel & ~gpio->trg & ~(gpio->dir ^ gpio->pin);
         break;
     case 0x18:
         gpio->dat &= ~data;
@@ -167,6 +168,21 @@ static void gpio_input_irq(void *opaque, int n, int level)
 {
     IngenicGpio *gpio = opaque;
     qemu_log("%s: GPIO %s%"PRIu32" -> %"PRIu32"\n", __func__, gpio->name, n, level);
+    uint32_t mask = 1 << n;
+    uint32_t val = level << n;
+    // Update interrupt flag
+    uint32_t intr = ~gpio->fun & gpio->sel;
+    if (intr & mask) {
+        if (gpio->trg & mask) {
+            // Edge trigger
+            gpio->flg |= (gpio->dir ^ gpio->pin) & ~(gpio->dir ^ val) & mask;
+        } else {
+            // Level trigger
+            gpio->flg |= ~(gpio->dir ^ val) & mask;
+        }
+    }
+    // Update pin state
+    gpio->pin = (gpio->pin & ~mask) | val;
 }
 
 static void ingenic_gpio_init(Object *obj)
