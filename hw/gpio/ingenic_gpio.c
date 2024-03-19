@@ -54,41 +54,42 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
 
     IngenicGpio *gpio = opaque;
     hwaddr aligned_addr = addr; // & ~3;
-    uint64_t data = 0;
+    uint32_t data = 0;
     switch (aligned_addr) {
     case 0x00:
-        return gpio->pin;
+        data = gpio->pin;
         break;
     case 0x10:
-        return gpio->dat;
+        data = gpio->dat;
         break;
     case 0x20:
-        return gpio->im;
+        data = gpio->im;
         break;
     case 0x30:
-        return gpio->pe;
+        data = gpio->pe;
         break;
     case 0x40:
-        return gpio->fun;
+        data = gpio->fun;
         break;
     case 0x50:
-        return gpio->sel;
+        data = gpio->sel;
         break;
     case 0x60:
-        return gpio->dir;
+        data = gpio->dir;
         break;
     case 0x70:
-        return gpio->trg;
+        data = gpio->trg;
         break;
     case 0x80:
-        return gpio->flg;
+        data = gpio->flg;
+        qmp_stop(NULL);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "GPIO read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    qemu_log("GPIO read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    qemu_log("GPIO read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx32"\n", addr, (uint32_t)size, data);
     return data;
 }
 
@@ -162,6 +163,12 @@ static MemoryRegionOps gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void gpio_input_irq(void *opaque, int n, int level)
+{
+    IngenicGpio *gpio = opaque;
+    qemu_log("%s: GPIO %s%"PRIu32" -> %"PRIu32"\n", __func__, gpio->name, n, level);
+}
+
 static void ingenic_gpio_init(Object *obj)
 {
     qemu_log("%s enter\n", __func__);
@@ -171,6 +178,10 @@ static void ingenic_gpio_init(Object *obj)
     memory_region_init_io(&s->mr, OBJECT(s), &gpio_ops, s, "gpio", 0x100);
     sysbus_init_mmio(sbd, &s->mr);
 
+    // Initialise GPIO inputs & outputs
+    qdev_init_gpio_in_named_with_opaque(DEVICE(obj), &gpio_input_irq, s, "in", 32);
+    qdev_init_gpio_out(DEVICE(obj), &s->output[0], 32);
+
     qemu_log("%s end\n", __func__);
 }
 
@@ -179,8 +190,14 @@ static void ingenic_gpio_finalize(Object *obj)
     qemu_log("%s enter\n", __func__);
 }
 
+static Property ingenic_gpio_properties[] = {
+    DEFINE_PROP_STRING("name", IngenicGpio, name),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_gpio_class_init(ObjectClass *class, void *data)
 {
+    device_class_set_props(DEVICE_CLASS(class), ingenic_gpio_properties);
     IngenicGpioClass *gpio_class = INGENIC_GPIO_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
