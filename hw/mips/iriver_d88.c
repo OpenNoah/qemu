@@ -51,6 +51,7 @@
 #include "hw/block/ingenic_emc.h"
 #include "hw/block/ingenic_bch.h"
 #include "hw/gpio/ingenic_gpio.h"
+#include "hw/char/ingenic_uart.h"
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -127,16 +128,16 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     }
 
     /* Initialise 16550 UART0 at APB 0x00030000 interrupt ? */
-    serial_mm_init(apb, 0x00030000, 2, env->irq[4],
-        115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
+    ingenic_uart_init(apb, 0x00030000, env->irq[4],
+        115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     /* Initialise 16550 UART1 at APB 0x00031000 interrupt ? */
-    serial_mm_init(apb, 0x00031000, 2, env->irq[5],
-        115200, serial_hd(1), DEVICE_LITTLE_ENDIAN);
+    ingenic_uart_init(apb, 0x00031000, env->irq[5],
+        115200, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 
     /* Initialise 16550 UART2 at APB 0x00032000 interrupt ? */
-    serial_mm_init(apb, 0x00032000, 2, env->irq[6],
-        115200, serial_hd(2), DEVICE_LITTLE_ENDIAN);
+    ingenic_uart_init(apb, 0x00032000, env->irq[6],
+        115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
 
     /* Init CPU internal devices. */
     cpu_mips_irq_init_cpu(cpu);

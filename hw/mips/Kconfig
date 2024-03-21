@@ -27,6 +27,7 @@ config INGENIC_JZ4740
     select INGENIC_CGU
     select INGENIC_EMC
     select INGENIC_GPIO
+    select INGENIC_UART
 
 config INGENIC_JZ4755
     bool
@@ -34,6 +35,7 @@ config INGENIC_JZ4755
     select INGENIC_EMC
     select INGENIC_BCH
     select INGENIC_GPIO
+    select INGENIC_UART
 
 config JAZZ
     bool
