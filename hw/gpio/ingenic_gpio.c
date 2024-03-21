@@ -197,8 +197,6 @@ static void ingenic_gpio_init(Object *obj)
     // Initialise GPIO inputs & outputs
     qdev_init_gpio_in_named_with_opaque(DEVICE(obj), &gpio_input_irq, s, "in", 32);
     qdev_init_gpio_out(DEVICE(obj), &s->output[0], 32);
-
-    qemu_log("%s end\n", __func__);
 }
 
 static void ingenic_gpio_finalize(Object *obj)
