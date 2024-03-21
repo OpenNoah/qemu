@@ -69,8 +69,8 @@ static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
         }
     }
 
-    qemu_log("EMC NAND %"PRIu32" read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
-             bank + 1, addr, (uint32_t)size, data);
+    //qemu_log("EMC NAND %"PRIu32" read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
+    //         bank + 1, addr, (uint32_t)size, data);
     return data;
 }
 
@@ -81,8 +81,8 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     uint32_t bank = opdata->bank;
     IngenicEmcNand *nand = emc->nand[bank];
 
-    qemu_log("EMC NAND %"PRIu32" write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
-             bank + 1, addr, (uint32_t)size, data);
+    //qemu_log("EMC NAND %"PRIu32" write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
+    //         bank + 1, addr, (uint32_t)size, data);
 
     if (!nand) {
         qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND %"PRIu32" no media\n", bank);
