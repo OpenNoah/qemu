@@ -16,6 +16,9 @@ config SSI_M25P80
 config INGENIC_EMC
     bool
 
+config INGENIC_BCH
+    bool
+
 config PFLASH_CFI01
     bool
 
