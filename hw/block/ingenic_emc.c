@@ -148,8 +148,6 @@ static void ingenic_emc_init(Object *obj)
 
     qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
     qemu_irq_raise(emc->io_nand_rb);
-
-    qemu_log("%s end\n", __func__);
 }
 
 static void ingenic_emc_finalize(Object *obj)

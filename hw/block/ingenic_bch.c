@@ -63,7 +63,7 @@ static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
         data = 0xff;
         break;
     case 0x24:
-        qemu_log("BCH read int 0x%"PRIx32" 0x%"PRIx32"\n", s->bhcnt, s->nbytes);
+        //qemu_log("BCH read int 0x%"PRIx32" 0x%"PRIx32"\n", s->bhcnt, s->nbytes);
         data = s->bhint;
         break;
     case 0x38:
