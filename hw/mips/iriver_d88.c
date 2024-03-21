@@ -49,6 +49,7 @@
 
 #include "hw/misc/ingenic_cgu.h"
 #include "hw/block/ingenic_emc.h"
+#include "hw/block/ingenic_bch.h"
 #include "hw/gpio/ingenic_gpio.h"
 
 typedef struct ResetData {
@@ -98,6 +99,12 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     /* Register AHB1 IO space at 0x13090000. */
     memory_region_init_io(ahb1, NULL, NULL, NULL, "ahb1", 0x00070000);
     memory_region_add_subregion(get_system_memory(), 0x13090000, ahb1);
+
+    // Register BCH on AHB1 bus
+    IngenicBch *bch = INGENIC_BCH(qdev_new(TYPE_INGENIC_BCH));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(bch), &error_fatal);
+    MemoryRegion *bch_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(bch), 0);
+    memory_region_add_subregion(ahb1, 0x00040000, bch_mr);
 
     /* Register APB IO space at 0x10000000. */
     memory_region_init_io(apb, NULL, NULL, NULL, "apb", 0x01000000);
