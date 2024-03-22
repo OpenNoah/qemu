@@ -82,13 +82,24 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
     env = &cpu->env;
 
+    // Internal SRAM, 16kB
+    MemoryRegion *sys_mem = get_system_memory();
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
+    memory_region_init_ram(sram, NULL, "sram", 16 * 1024, &error_fatal);
+    memory_region_add_subregion(sys_mem, 0x80000000, sram);
+
+    // TCSM SRAM, 16kB
+    MemoryRegion *tcsm = g_new(MemoryRegion, 1);
+    memory_region_init_ram(tcsm, NULL, "tcsm", 16 * 1024, &error_fatal);
+    memory_region_add_subregion(sys_mem, 0xf4000000, tcsm);
+
     MemoryRegion *ahb0 = g_new(MemoryRegion, 1);
     MemoryRegion *ahb1 = g_new(MemoryRegion, 1);
     MemoryRegion *apb  = g_new(MemoryRegion, 1);
 
     /* Register AHB0 IO space at 0x13000000. */
-    memory_region_init_io(ahb0, NULL, NULL, NULL, "ahb0", 0x00090000);
-    memory_region_add_subregion(get_system_memory(), 0x13000000, ahb0);
+    memory_region_init(ahb0, NULL, "ahb0", 0x00090000);
+    memory_region_add_subregion(sys_mem, 0x13000000, ahb0);
 
     // Register EMC on AHB0 bus
     IngenicEmc *emc = INGENIC_EMC(qdev_new(TYPE_INGENIC_EMC));
@@ -97,8 +108,8 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     memory_region_add_subregion(ahb0, 0x00010000, emc_mr);
 
     /* Register AHB1 IO space at 0x13090000. */
-    memory_region_init_io(ahb1, NULL, NULL, NULL, "ahb1", 0x00070000);
-    memory_region_add_subregion(get_system_memory(), 0x13090000, ahb1);
+    memory_region_init(ahb1, NULL, "ahb1", 0x00070000);
+    memory_region_add_subregion(sys_mem, 0x13090000, ahb1);
 
     // Register BCH on AHB1 bus
     IngenicBch *bch = INGENIC_BCH(qdev_new(TYPE_INGENIC_BCH));
@@ -107,8 +118,8 @@ static MIPSCPU *jz4755_init(MachineState *machine)
     memory_region_add_subregion(ahb1, 0x00040000, bch_mr);
 
     /* Register APB IO space at 0x10000000. */
-    memory_region_init_io(apb, NULL, NULL, NULL, "apb", 0x01000000);
-    memory_region_add_subregion(get_system_memory(), 0x10000000, apb);
+    memory_region_init(apb, NULL, "apb", 0x01000000);
+    memory_region_add_subregion(sys_mem, 0x10000000, apb);
 
     /* Register CGU on APB bus */
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
@@ -175,8 +186,6 @@ static void mips_iriver_d88_init(MachineState *machine)
     /* Allocate RAM. */
     memory_region_init_rom(bootrom, NULL, "mips_iriver_d88.bootrom", 8 * 1024,
                            &error_fatal);
-
-    memory_region_add_subregion(address_space_mem, 0LL, machine->ram);
 
     /* Map the BIOS / boot exception handler. */
     memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bootrom);
