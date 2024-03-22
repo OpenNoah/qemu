@@ -1,5 +1,5 @@
 /*
- * Ingenic External Memory Controller (SDRAM, NAND) emulation
+ * Ingenic External Memory Controller NAND interface emulation
  *
  * Copyright (c) 2024
  * Written by Norman Zhi <normanzyb@gmail.com>
