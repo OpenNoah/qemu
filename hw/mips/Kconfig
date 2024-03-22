@@ -30,6 +30,7 @@ config INGENIC_JZ4755
     select INGENIC_BCH
     select INGENIC_GPIO
     select INGENIC_UART
+    select INGENIC_ADC
 
 config JAZZ
     bool
