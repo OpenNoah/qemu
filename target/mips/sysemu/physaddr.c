@@ -201,6 +201,13 @@ int get_physical_address(CPUMIPSState *env, hwaddr *physical,
             ret = TLBRET_BADADDR;
         }
 #endif
+    } else if (env->cpu_model->mmu_type == MMU_TYPE_JZ4755 && (
+                                    (address <= 0x80003FFF) ||
+        ((address >= 0xF4000000) && (address <= 0xF400FFFF)))) {
+        /* Ingenic internal SRAM */
+        ret = get_segctl_physical_address(env, physical, prot, real_address,
+                                          access_type, mmu_idx,
+                                          env->CP0_SegCtl1 >> 16, 0xFFFFFFFF);
     } else if (address < KSEG1_BASE) {
         /* kseg0 */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
