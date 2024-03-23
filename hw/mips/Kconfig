@@ -31,6 +31,7 @@ config INGENIC_JZ4755
     select INGENIC_UART
     select INGENIC_ADC
     select INGENIC_RTC
+    select INGENIC_TCU
 
 config JAZZ
     bool
