@@ -62,7 +62,7 @@ typedef struct IngenicEmcClass
     ResettablePhases parent_phases;
 } IngenicEmcClass;
 
-void ingenic_emc_register_nand(IngenicEmc *s, IngenicEmcNand *nand, uint32_t cs);
+IngenicEmc *ingenic_emc_register_nand(IngenicEmcNand *nand, uint32_t cs);
 
 // NAND
 
