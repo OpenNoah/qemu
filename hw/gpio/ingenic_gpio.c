@@ -58,6 +58,13 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
     switch (aligned_addr) {
     case 0x00:
         data = gpio->pin;
+        {
+            uint32_t to_raise = gpio->pending_raise & ~gpio->pin;
+            uint32_t to_fall = gpio->pending_fall & gpio->pin;
+            gpio->pin = (gpio->pin | to_raise) & ~to_fall;
+            gpio->pending_raise &= ~to_raise;
+            gpio->pending_fall &= ~to_fall;
+        }
         break;
     case 0x10:
         data = gpio->dat;
@@ -183,6 +190,10 @@ static void gpio_input_irq(void *opaque, int n, int level)
     }
     // Update pin state
     gpio->pin = (gpio->pin & ~mask) | val;
+    if (level)
+        gpio->pending_raise |= mask;
+    else
+        gpio->pending_fall |= mask;
 }
 
 static void ingenic_gpio_init(Object *obj)

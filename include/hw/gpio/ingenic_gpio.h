@@ -54,6 +54,8 @@ typedef struct IngenicGpio {
 
     // IRQs
     qemu_irq output[32];
+    uint32_t pending_raise;
+    uint32_t pending_fall;
 } IngenicGpio;
 
 typedef struct IngenicGpioClass
