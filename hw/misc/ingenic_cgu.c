@@ -51,35 +51,49 @@ static void ingenic_cgu_reset(Object *obj, ResetType type)
     s->RSR    = 0x00000001;
 }
 
-static void ingenic_cgu_update_clocks(IngenicCgu *cgu)
+static void ingenic_cgu_update_clocks(IngenicCgu *s)
 {
     // Update clock frequencies
-    uint32_t ext_clk = 24000000;
-    uint32_t sys_clk = ext_clk;
-
-    if ((cgu->CPPCR & (BIT(8) | BIT(9))) == BIT(8)) {
+    if ((s->CPPCR & (BIT(8) | BIT(9))) == BIT(8)) {
         // Switch to PLL
-        uint32_t m = (cgu->CPPCR >> 23) + 2;
-        uint32_t n = ((cgu->CPPCR >> 18) & 0x1f) + 2;
-        uint32_t od = (cgu->CPPCR >> 16) & 3;
+        uint32_t m = (s->CPPCR >> 23) + 2;
+        uint32_t n = ((s->CPPCR >> 18) & 0x1f) + 2;
+        uint32_t od = (s->CPPCR >> 16) & 3;
         static const uint32_t od_map[] = {1, 2, 2, 4};
         od = od_map[od];
-        uint32_t pll_clk = ext_clk * m / n / od;
-        sys_clk = pll_clk;
+        clock_update(s->clk_pll, clock_get(s->clk_ext) * (n * od) / m);
+    } else {
+        // Switch to EXT
+        clock_update(s->clk_pll, clock_get(s->clk_ext));
     }
 
-    uint32_t cclk = sys_clk;
-    uint32_t cdiv = cgu->CPCCR & 0x0f;
-    static const uint32_t cdiv_map[16] = {1, 2, 3, 4, 6, 8, 0};
-    cdiv = cdiv_map[cdiv];
+    static const uint32_t div_map[16] = {1, 2, 3, 4, 6, 8, 0};
+
+    // CCLK
+    uint32_t cdiv = div_map[s->CPCCR & 0x0f];
     if (unlikely(cdiv == 0)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "CGU cclk div by 0\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: cclk div by 0\n", __func__);
         cdiv = 1;
     }
-    cclk /= cdiv;
+    clock_update(s->clk_cclk, clock_get(s->clk_pll) * cdiv);
 
-    qemu_log("CGU freq cclk %"PRIu32"\n", cclk);
-    clock_set_hz(qdev_get_clock_out(DEVICE(cgu), "clk-cclk"), cclk);
+    // MCLK
+    uint32_t mdiv = div_map[(s->CPCCR >> 12) & 0x0f];
+    if (unlikely(mdiv == 0)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: mclk div by 0\n", __func__);
+        mdiv = 1;
+    }
+    clock_update(s->clk_mclk, clock_get(s->clk_pll) * mdiv);
+
+    // PCLK
+    uint32_t pdiv = div_map[(s->CPCCR >> 8) & 0x0f];
+    if (unlikely(pdiv == 0)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: pdiv div by 0\n", __func__);
+        pdiv = 1;
+    }
+    clock_update(s->clk_pclk, clock_get(s->clk_pll) * pdiv);
+
+    qemu_log("%s: cclk freq %"PRIu32"\n", __func__, clock_get_hz(s->clk_cclk));
 }
 
 static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
@@ -157,6 +171,26 @@ static MemoryRegionOps cgu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+IngenicCgu *ingenic_cgu_get_cgu()
+{
+    Object *obj = object_resolve_path_type("", TYPE_INGENIC_CGU, NULL);
+    if (!obj) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: "TYPE_INGENIC_CGU" device not found", __func__);
+        return NULL;
+    }
+    return INGENIC_CGU(obj);
+}
+
+static const ClockPortInitArray cgu_clks = {
+    QDEV_CLOCK_OUT(IngenicCgu, clk_ext),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_rtc),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_pll),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_cclk),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_mclk),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_pclk),
+    QDEV_CLOCK_END
+};
+
 static void ingenic_cgu_init(Object *obj)
 {
     printf("%s enter\n", __func__);
@@ -166,9 +200,15 @@ static void ingenic_cgu_init(Object *obj)
     memory_region_init_io(&s->mr, OBJECT(s), &cgu_ops, s, "cgu", 0x1000);
     sysbus_init_mmio(sbd, &s->mr);
 
-    qdev_init_clock_out(DEVICE(s), "clk-cclk");
+    qdev_init_clocks(DEVICE(s), cgu_clks);
+}
+
+static void ingenic_cgu_realize(DeviceState *dev, Error **errp)
+{
+    IngenicCgu *s = INGENIC_CGU(dev);
+    clock_set_hz(s->clk_ext, s->ext_freq);
+    clock_set_hz(s->clk_rtc, s->rtc_freq);
     ingenic_cgu_update_clocks(s);
-    printf("%s end\n", __func__);
 }
 
 static void ingenic_cgu_finalize(Object *obj)
@@ -176,8 +216,18 @@ static void ingenic_cgu_finalize(Object *obj)
     printf("%s enter\n", __func__);
 }
 
+static Property ingenic_cgu_properties[] = {
+    DEFINE_PROP_UINT32("ext-freq", IngenicCgu, ext_freq, 12000000),
+    DEFINE_PROP_UINT32("rtc-freq", IngenicCgu, rtc_freq, 32768),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_cgu_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+    device_class_set_props(dc, ingenic_cgu_properties);
+    dc->realize = ingenic_cgu_realize;
+
     IngenicCguClass *cgu_class = INGENIC_CGU_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
