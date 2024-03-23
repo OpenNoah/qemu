@@ -32,7 +32,7 @@ static void ingenic_gpio_reset(Object *obj, ResetType type)
     IngenicGpio *gpio = INGENIC_GPIO(obj);
 
     // Initial register values
-    gpio->pin = 0x00000000;
+    gpio->pin = gpio->reset;
     gpio->dat = 0x00000000;
     gpio->im  = 0xffffffff;
     gpio->pe  = 0x00000000;
@@ -205,7 +205,9 @@ static void ingenic_gpio_finalize(Object *obj)
 }
 
 static Property ingenic_gpio_properties[] = {
-    DEFINE_PROP_STRING("name", IngenicGpio, name),
+    DEFINE_PROP_STRING("name",  IngenicGpio, name),
+    DEFINE_PROP_UINT32("pull",  IngenicGpio, pull, 0xffffffff),
+    DEFINE_PROP_UINT32("reset", IngenicGpio, reset, 0xffffffff),
     DEFINE_PROP_END_OF_LIST(),
 };
 
