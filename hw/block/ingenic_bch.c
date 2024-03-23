@@ -37,7 +37,6 @@ void qmp_stop(Error **errp);
 static void ingenic_bch_reset(Object *obj, ResetType type)
 {
     IngenicBch *s = INGENIC_BCH(obj);
-    (void)s;
 
     // Initial values
     s->bhcr = 0;
