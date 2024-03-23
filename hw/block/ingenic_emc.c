@@ -166,12 +166,24 @@ static MemoryRegionOps emc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void ingenic_emc_register_nand(IngenicEmc *s, IngenicEmcNand *nand, uint32_t cs)
+static IngenicEmc *get_emc()
+{
+    Object *obj = object_resolve_path_type("", TYPE_INGENIC_EMC, NULL);
+    if (!obj) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: ingenic-emc device not found", __func__);
+        return NULL;
+    }
+    return INGENIC_EMC(obj);
+}
+
+IngenicEmc *ingenic_emc_register_nand(IngenicEmcNand *nand, uint32_t cs)
 {
     if (cs < 1 || cs > 4) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid CS %"PRIu32", 1~4 supported by ingenic-emc", cs);
-        return;
+        return NULL;
     }
+
+    IngenicEmc *s = get_emc();
     uint32_t bank = cs - 1;
     s->nand[bank] = nand;
 
@@ -180,6 +192,8 @@ void ingenic_emc_register_nand(IngenicEmc *s, IngenicEmcNand *nand, uint32_t cs)
     MemoryRegion *nand_mr = &nand->mr;
     memory_region_set_enabled(nand_mr, false);
     memory_region_add_subregion(sys_mem, static_bank_addr[bank], nand_mr);
+
+    return s;
 }
 
 static void ingenic_emc_init(Object *obj)
