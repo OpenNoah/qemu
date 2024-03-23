@@ -30,3 +30,6 @@ config GOLDFISH_RTC
 
 config LS7A_RTC
     bool
+
+config INGENIC_RTC
+    bool
