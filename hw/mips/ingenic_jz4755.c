@@ -45,6 +45,7 @@
 #include "hw/char/ingenic_uart.h"
 #include "hw/adc/ingenic_adc.h"
 #include "hw/rtc/ingenic_rtc.h"
+#include "hw/timer/ingenic_tcu.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -103,6 +104,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     // 0x10000000 Register CGU on APB
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
+
+    // 0x1000204C Register TCU/OST/WDT on APB
+    IngenicTcu *tcu = INGENIC_TCU(qdev_new(TYPE_INGENIC_TCU));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tcu), &error_fatal);
+    MemoryRegion *tcu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(tcu), 0);
+    memory_region_add_subregion(apb, 0x00002000, tcu_mr);
 
     // 0x10003000 Register RTC on APB
     IngenicRtc *rtc = INGENIC_RTC(qdev_new(TYPE_INGENIC_RTC));
