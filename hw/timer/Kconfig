@@ -58,5 +58,8 @@ config SSE_TIMER
 config STELLARIS_GPTM
     bool
 
+config INGENIC_TCU
+    bool
+
 config AVR_TIMER16
     bool
