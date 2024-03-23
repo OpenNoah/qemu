@@ -34,6 +34,29 @@
 
 void qmp_stop(Error **errp);
 
+static const uint32_t static_bank_addr[] = {
+    0x18000000, 0x14000000, 0x0c000000, 0x08000000,
+};
+
+static uint64_t ingenic_emc_static_null_read(void *opaque, hwaddr addr, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Read with no device attached @ "
+                  HWADDR_FMT_plx "/%"PRIu32"\n", __func__, addr, size);
+    return __UINT64_MAX__;
+}
+
+static void ingenic_emc_static_null_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Write with no device attached @ "
+                  HWADDR_FMT_plx "/%"PRIu32": 0x%"PRIx64"\n", __func__, addr, size, data);
+}
+
+static MemoryRegionOps emc_static_null_ops = {
+    .read = ingenic_emc_static_null_read,
+    .write = ingenic_emc_static_null_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void ingenic_emc_reset(Object *obj, ResetType type)
 {
     IngenicEmc *s = INGENIC_EMC(obj);
@@ -119,9 +142,15 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case 0x50:
         emc->NFCSR = data & 0xff;
         for (int bank = 0; bank < 4; bank++) {
-            memory_region_set_enabled(&emc->nand_io_mr[bank], emc->NFCSR & BIT(bank * 2));
-            qemu_log("EMC NAND bank %"PRIu32": %s\n", bank + 1,
-                     emc->NFCSR & BIT(bank * 2) ? "enabled" : "disabled");
+            bool nand_mode = !!(emc->NFCSR & BIT(bank * 2));
+            qemu_log("%s: EMC bank %"PRIu32": %s\n", __func__, bank + 1, nand_mode ? "NAND" : "SRAM");
+            if (emc->nand[bank]) {
+                memory_region_set_enabled(&emc->nand[bank]->mr, nand_mode);
+                memory_region_set_enabled(&emc->static_null_mr[bank], !nand_mode);
+            } else if (nand_mode) {
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Attempting to enable NAND %"PRIu32", but no ingenic-emc-nand attached\n",
+                              __func__, bank + 1);
+            }
         }
         break;
     default:
@@ -137,17 +166,34 @@ static MemoryRegionOps emc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+void ingenic_emc_register_nand(IngenicEmc *s, IngenicEmcNand *nand, uint32_t cs)
+{
+    if (cs < 1 || cs > 4) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid CS %"PRIu32", 1~4 supported by ingenic-emc", cs);
+        return;
+    }
+    uint32_t bank = cs - 1;
+    s->nand[bank] = nand;
+
+    // Disable and attach to static memory region
+    MemoryRegion *sys_mem = get_system_memory();
+    MemoryRegion *nand_mr = &nand->mr;
+    memory_region_set_enabled(nand_mr, false);
+    memory_region_add_subregion(sys_mem, static_bank_addr[bank], nand_mr);
+}
+
 static void ingenic_emc_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
+    qemu_log("%s: enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicEmc *emc = INGENIC_EMC(obj);
+    MemoryRegion *sys_mem = get_system_memory();
 
     memory_region_init(&emc->emc_mr, NULL, "emc", 0x10000);
     sysbus_init_mmio(sbd, &emc->emc_mr);
 
-    memory_region_init_io(&emc->emc_sram_mr, obj, &emc_ops, emc, "emc.sram", 0x80);
-    memory_region_add_subregion(&emc->emc_mr, 0, &emc->emc_sram_mr);
+    memory_region_init_io(&emc->emc_sramcfg_mr, obj, &emc_ops, emc, "emc.sramcfg", 0x80);
+    memory_region_add_subregion(&emc->emc_mr, 0, &emc->emc_sramcfg_mr);
 
     qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
     qemu_irq_raise(emc->io_nand_rb);
@@ -158,36 +204,23 @@ static void ingenic_emc_init(Object *obj)
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 0));
     memory_region_add_subregion(&emc->emc_mr, 0x8000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 1));
+
+    // Add NOP background static memory regions
+    // Write gets ignored, read returns 0xff
+    for (int bank = 0; bank < 4; bank++) {
+        memory_region_init_io(&emc->static_null_mr[bank], OBJECT(emc),
+                              &emc_static_null_ops, NULL, "emc.static.null", 0x00800000);
+        memory_region_add_subregion(sys_mem, static_bank_addr[bank], &emc->static_null_mr[bank]);
+    }
 }
 
 static void ingenic_emc_finalize(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
-}
-
-static void ingenic_emc_realize(DeviceState *dev, Error **errp)
-{
-    IngenicEmc *emc = INGENIC_EMC(dev);
-    MemoryRegion *sys_mem = get_system_memory();
-
-    // Add NAND IO regions, but disabled for now
-    static const uint32_t nand_bank_addr[] = {
-        0x18000000, 0x14000000, 0x0c000000, 0x08000000,
-    };
-    for (int bank = 0; bank < 4; bank++) {
-        emc->nand_io_data[bank].emc = emc;
-        memory_region_init_io(&emc->nand_io_mr[bank], OBJECT(emc),
-                              &nand_io_ops, &emc->nand_io_data[bank], "emc.nand.io", 0x00100000);
-        memory_region_set_enabled(&emc->nand_io_mr[bank], false);
-        memory_region_add_subregion(sys_mem, nand_bank_addr[bank], &emc->nand_io_mr[bank]);
-    }
+    qemu_log("%s: enter\n", __func__);
 }
 
 static void ingenic_emc_class_init(ObjectClass *class, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    dc->realize = &ingenic_emc_realize;
-
     IngenicEmcClass *emc_class = INGENIC_EMC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
