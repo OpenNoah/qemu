@@ -30,26 +30,15 @@
 #define TYPE_INGENIC_EMC "ingenic-emc"
 OBJECT_DECLARE_TYPE(IngenicEmc, IngenicEmcClass, INGENIC_EMC)
 
-extern MemoryRegionOps nand_io_ops;
-
 typedef struct IngenicEmcNand  IngenicEmcNand;
 typedef struct IngenicEmcSdram IngenicEmcSdram;
-
-typedef struct NandOpData {
-    IngenicEmc *emc;
-    uint32_t bank;
-} NandOpData;
 
 typedef struct IngenicEmc {
     SysBusDevice parent_obj;
 
     MemoryRegion emc_mr;
-    MemoryRegion emc_sram_mr;
-    MemoryRegion origin_mr;
-    MemoryRegion static_mr[4];
-    MemoryRegion nand_io_mr[4];
-
-    NandOpData nand_io_data[4];
+    MemoryRegion emc_sramcfg_mr;
+    MemoryRegion static_null_mr[4];
 
     IngenicEmcNand *nand[4];
     IngenicEmcSdram *sdram;
@@ -73,6 +62,8 @@ typedef struct IngenicEmcClass
     ResettablePhases parent_phases;
 } IngenicEmcClass;
 
+void ingenic_emc_register_nand(IngenicEmc *s, IngenicEmcNand *nand, uint32_t cs);
+
 // NAND
 
 #define TYPE_INGENIC_EMC_NAND "ingenic-emc-nand"
@@ -81,8 +72,10 @@ OBJECT_DECLARE_TYPE(IngenicEmcNand, IngenicEmcNandClass, INGENIC_EMC_NAND)
 typedef struct IngenicEmcNand {
     // Class inheritance
     DeviceState parent_obj;
+    MemoryRegion mr;
     // Properties
     BlockBackend *blk;
+    IngenicEmc *emc;
     char *nand_id_str;
     uint64_t nand_id;
     uint32_t total_pages;
