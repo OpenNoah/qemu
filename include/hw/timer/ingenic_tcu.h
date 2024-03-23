@@ -26,10 +26,26 @@
 #define INGENIC_TCU_H
 
 #include "hw/sysbus.h"
+#include "hw/ptimer.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_TCU "ingenic-tcu"
 OBJECT_DECLARE_TYPE(IngenicTcu, IngenicTcuClass, INGENIC_TCU)
+
+typedef struct IngenicTcu IngenicTcu;
+
+typedef struct IngenicTcuTimer
+{
+    IngenicTcu *tcu;
+    ptimer_state *ptimer;
+    bool tcu2;  // TCU2 mode
+
+    // Registers
+    uint16_t tdfr;
+    uint16_t tdhr;
+    uint16_t tcnt;
+    uint16_t tcsr;
+} IngenicTcuTimer;
 
 typedef struct IngenicTcu
 {
@@ -45,12 +61,7 @@ typedef struct IngenicTcu
         uint16_t ter;
         uint32_t tfr;
         uint32_t tmr;
-        struct {
-            uint16_t tdfr;
-            uint16_t tdhr;
-            uint16_t tcnt;
-            uint16_t tcsr;
-        } timer[6];
+        IngenicTcuTimer timer[6];
     } tcu;
 
     struct {
