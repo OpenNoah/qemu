@@ -34,23 +34,29 @@
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
 
-void qmp_stop(Error **errp);
-
-// IO operations for IngenicEmc
-
 #define CMD_READ        0x00
 #define CMD_READ_2      0x30
 #define CMD_READ_ID     0x90
 #define CMD_RESET       0xff
 
-static void nand_read_page(IngenicEmcNand *nand);
+void qmp_stop(Error **errp);
+
+static void nand_read_page(IngenicEmcNand *nand)
+{
+    uint32_t row = nand->addr >> 16;
+    nand->page_ofs = nand->addr % nand->page_size;
+    if (blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
+                  nand->page_size + nand->oob_size, nand->page_buf, 0) < 0) {
+        printf("%s: read error at address 0x%"PRIx64"\n", __func__, nand->addr);
+        qmp_stop(NULL);
+        return;
+    }
+}
 
 static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    NandOpData *opdata = opaque;
-    IngenicEmc *emc = opdata->emc;
-    uint32_t bank = opdata->bank;
-    IngenicEmcNand *nand = emc->nand[bank];
+    IngenicEmcNand *nand = INGENIC_EMC_NAND(opaque);
+    uint32_t bank = nand->cs;
     uint64_t data = 0;
 
     if (!nand) {
@@ -76,10 +82,9 @@ static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
 
 static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    NandOpData *opdata = opaque;
-    IngenicEmc *emc = opdata->emc;
-    uint32_t bank = opdata->bank;
-    IngenicEmcNand *nand = emc->nand[bank];
+    IngenicEmcNand *nand = INGENIC_EMC_NAND(opaque);
+    uint32_t bank = nand->cs;
+    IngenicEmc *emc = nand->emc;
 
     //qemu_log("EMC NAND %"PRIu32" write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
     //         bank + 1, addr, (uint32_t)size, data);
@@ -156,25 +161,11 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     }
 }
 
-MemoryRegionOps nand_io_ops = {
+static MemoryRegionOps nand_io_ops = {
     .read = ingenic_nand_io_read,
     .write = ingenic_nand_io_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-// IngenicEmcNand Block
-
-static void nand_read_page(IngenicEmcNand *nand)
-{
-    uint32_t row = nand->addr >> 16;
-    nand->page_ofs = nand->addr % nand->page_size;
-    if (blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
-                  nand->page_size + nand->oob_size, nand->page_buf, 0) < 0) {
-        printf("%s: read error at address 0x%"PRIx64"\n", __func__, nand->addr);
-        qmp_stop(NULL);
-        return;
-    }
-}
 
 static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
 {
@@ -204,12 +195,10 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    // Register with EMC
     IngenicEmc *emc = INGENIC_EMC(obj);
-    if (s->cs < 1 || s->cs > 4) {
-        error_setg(errp, "Invalid CS, 1~4 supported by ingenic-emc");
-        return;
-    }
-    emc->nand[s->cs - 1] = s;
+    ingenic_emc_register_nand(emc, s, s->cs);
+    s->emc = emc;
 
     if (!s->nand_id_str) {
         error_setg(errp, "nand-id not set");
@@ -244,10 +233,27 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
 
 static void ingenic_emc_nand_unrealize(DeviceState *dev)
 {
-    qemu_log("%s enter\n", __func__);
+    qemu_log("%s: enter\n", __func__);
 
+    // Deregister with EMC
     IngenicEmcNand *s = INGENIC_EMC_NAND(dev);
+    s->emc->nand[s->cs - 1] = NULL;
     g_free(s->page_buf);
+}
+
+static void ingenic_emc_nand_init(Object *obj)
+{
+    qemu_log("%s: enter\n", __func__);
+
+    IngenicEmcNand *s = INGENIC_EMC_NAND(obj);
+
+    // NAND IO region
+    memory_region_init_io(&s->mr, obj, &nand_io_ops, s, "emc.nand.io", 0x00100000);
+}
+
+static void ingenic_emc_nand_finalize(Object *obj)
+{
+    qemu_log("%s: enter\n", __func__);
 }
 
 static Property ingenic_emc_nand_properties[] = {
@@ -266,16 +272,6 @@ static void ingenic_emc_nand_class_init(ObjectClass *class, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->realize = ingenic_emc_nand_realize;
     dc->unrealize = ingenic_emc_nand_unrealize;
-}
-
-static void ingenic_emc_nand_init(Object *obj)
-{
-    qemu_log("%s enter\n", __func__);
-}
-
-static void ingenic_emc_nand_finalize(Object *obj)
-{
-    qemu_log("%s enter\n", __func__);
 }
 
 OBJECT_DEFINE_TYPE(IngenicEmcNand, ingenic_emc_nand, INGENIC_EMC_NAND, DEVICE)
