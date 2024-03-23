@@ -22,15 +22,6 @@ config IRIVER_D88
     select SERIAL_ISA
     select INGENIC_JZ4755
 
-config INGENIC_JZ4740
-    bool
-    select INGENIC_CGU
-    select INGENIC_EMC
-    select INGENIC_GPIO
-    select INGENIC_UART
-    select INGENIC_ADC
-    select INGENIC_RTC
-
 config INGENIC_JZ4755
     bool
     select INGENIC_CGU
