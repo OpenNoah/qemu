@@ -189,16 +189,8 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
     }
     s->total_pages = size / (s->page_size + s->oob_size);
 
-    Object *obj = object_resolve_path_type("", TYPE_INGENIC_EMC, NULL);
-    if (!obj) {
-        error_setg(errp, "ingenic-emc device not found");
-        return;
-    }
-
     // Register with EMC
-    IngenicEmc *emc = INGENIC_EMC(obj);
-    ingenic_emc_register_nand(emc, s, s->cs);
-    s->emc = emc;
+    s->emc = ingenic_emc_register_nand(s, s->cs);
 
     if (!s->nand_id_str) {
         error_setg(errp, "nand-id not set");
