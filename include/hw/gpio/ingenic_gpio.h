@@ -38,6 +38,8 @@ typedef struct IngenicGpio {
     /*< public >*/
     MemoryRegion mr;
     char *name;
+    uint32_t pull;
+    uint32_t reset;
 
     // Registers
     uint32_t pin;
