@@ -54,12 +54,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 
     /* Needs to have clocks first */
     IngenicCgu *cgu = INGENIC_CGU(qdev_new(TYPE_INGENIC_CGU));
+    object_property_set_uint(OBJECT(cgu), "ext-freq", 24000000, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(cgu), &error_fatal);
 
     /* Init CPUs. */
-    printf("%s cpu clock\n", __func__);
     // machine->cpu_type = "XBurstR1-mips-cpu";
-    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"));
     env = &cpu->env;
 
     // 0x80000000 Internal SRAM, 16kB
