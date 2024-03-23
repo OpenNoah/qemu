@@ -24,12 +24,91 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/timer/ingenic_tcu.h"
+#include "hw/misc/ingenic_cgu.h"
 
 void qmp_stop(Error **errp);
+
+static uint64_t ingenic_tcu_timer_read(IngenicTcuTimer *timer, hwaddr addr, unsigned size)
+{
+    uint64_t data = 0;
+    switch (addr % 0x10) {
+    case 0x00:
+        data = timer->tdfr;
+        break;
+    case 0x04:
+        data = timer->tdhr;
+        break;
+    case 0x08:
+        data = timer->tcnt;
+        break;
+    case 0x0c:
+        data = timer->tcsr;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
+        qmp_stop(NULL);
+    }
+    qmp_stop(NULL);
+    return data;
+}
+
+static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_t data, unsigned size)
+{
+    switch (addr % 0x10) {
+    case 0x00:
+        timer->tdfr = data;
+        break;
+    case 0x04:
+        timer->tdhr = data;
+        break;
+    case 0x08:
+        timer->tcnt = data;
+        break;
+    case 0x0c: {
+            bool freq_change = ((timer->tcsr ^ data) & 0x3f) != 0;
+            timer->tcsr = data & 0x03bf;
+            if (freq_change) {
+                // Configure timer frequency
+                static const uint32_t clkdiv_map[] = {1, 4, 16, 64, 256, 1024, 0, 0};
+                uint32_t clkdiv = clkdiv_map[(timer->tcsr >> 3) & 7];
+                IngenicCgu *cgu = ingenic_cgu_get_cgu();
+                Clock *clock = NULL;
+                if (timer->tcsr & BIT(2))
+                    clock = qdev_get_clock_out(DEVICE(cgu), "clk_ext");
+                else if (timer->tcsr & BIT(1))
+                    clock = qdev_get_clock_out(DEVICE(cgu), "clk_rtc");
+                else if (timer->tcsr & BIT(0))
+                    clock = qdev_get_clock_out(DEVICE(cgu), "clk_pclk");
+                if (clkdiv != 0 && clock != NULL) {
+                    ptimer_transaction_begin(timer->ptimer);
+                    ptimer_set_period_from_clock(timer->ptimer, clock, clkdiv);
+                    ptimer_transaction_commit(timer->ptimer);
+                    qemu_log("%s: timer freq %"PRIu32"\n", __func__, (uint32_t)(clock_get_hz(clock) / clkdiv));
+                }
+            }
+            if (timer->tcu2 && (data & BIT(10))) {
+                qemu_log("%s: TODO Clear counter to 0\n", __func__);
+                timer->tcnt = 0;
+            }
+        }
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
+                    __func__, addr, data);
+        qmp_stop(NULL);
+    }
+}
+
+static void ingenic_tcu_timer_cb(void *opaque)
+{
+    IngenicTcuTimer *timer = opaque;
+    (void)timer;
+}
 
 static void ingenic_tcu_reset(Object *obj, ResetType type)
 {
@@ -45,23 +124,7 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t data = 0;
     if (addr >= 0x40 && addr < 0x100) {
         uint32_t timer = (addr - 0x40) / 0x10;
-        switch (addr % 0x10) {
-        case 0x00:
-            data = s->tcu.timer[timer].tdfr;
-            break;
-        case 0x04:
-            data = s->tcu.timer[timer].tdhr;
-            break;
-        case 0x08:
-            data = s->tcu.timer[timer].tcnt;
-            break;
-        case 0x0c:
-            data = s->tcu.timer[timer].tcsr;
-            break;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
-            qmp_stop(NULL);
-        }
+        data = ingenic_tcu_timer_read(&s->tcu.timer[timer], addr, size);
     } else {
         switch (addr) {
         case 0x10:
@@ -96,29 +159,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     IngenicTcu *s = INGENIC_TCU(opaque);
     if (addr >= 0x40 && addr < 0x100) {
         uint32_t timer = (addr - 0x40) / 0x10;
-        switch (addr % 0x10) {
-        case 0x00:
-            s->tcu.timer[timer].tdfr = data;
-            break;
-        case 0x04:
-            s->tcu.timer[timer].tdhr = data;
-            break;
-        case 0x08:
-            s->tcu.timer[timer].tcnt = data;
-            break;
-        case 0x0c:
-            s->tcu.timer[timer].tcsr = data & 0x03bf;
-            if (data & BIT(10)) {
-                // TODO Clear counter to 0 in TCU2 mode
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: TODO\n", __func__);
-                qmp_stop(NULL);
-            }
-            break;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
-                        __func__, addr, data);
-            qmp_stop(NULL);
-        }
+        ingenic_tcu_timer_write(&s->tcu.timer[timer], addr, data, size);
     } else {
         switch (addr) {
         case 0x14:
@@ -173,10 +214,22 @@ static void ingenic_tcu_init(Object *obj)
     IngenicTcu *s = INGENIC_TCU(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &tcu_ops, s, "tcu", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
+
+    for (int i = 0; i < 6; i++) {
+        s->tcu.timer[i].tcu = s;
+        s->tcu.timer[i].ptimer = ptimer_init(&ingenic_tcu_timer_cb, &s->tcu.timer[i],
+                                             PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD);
+    }
+    s->tcu.timer[1].tcu2 = true;
+    s->tcu.timer[2].tcu2 = true;
 }
 
 static void ingenic_tcu_finalize(Object *obj)
 {
+    IngenicTcu *s = INGENIC_TCU(obj);
+    for (int i = 0; i < 6; i++)
+        ptimer_free(s->tcu.timer[i].ptimer);
+
 }
 
 static void ingenic_tcu_class_init(ObjectClass *class, void *data)
