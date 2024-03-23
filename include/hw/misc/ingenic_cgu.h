@@ -21,6 +21,7 @@
 #define INGENIC_CGU_H
 
 #include "hw/sysbus.h"
+#include "hw/clock.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_CGU "ingenic-cgu"
@@ -44,6 +45,16 @@ typedef struct IngenicCgu {
     uint32_t MSCCDR;
     uint32_t SSICDR;
     uint32_t CIMCDR;
+
+    // Clocks
+    uint32_t ext_freq;
+    uint32_t rtc_freq;
+    Clock *clk_ext;
+    Clock *clk_rtc;
+    Clock *clk_pll;
+    Clock *clk_cclk;
+    Clock *clk_mclk;
+    Clock *clk_pclk;
 } IngenicCgu;
 
 typedef struct IngenicCguClass
@@ -51,5 +62,7 @@ typedef struct IngenicCguClass
     SysBusDeviceClass parent_class;
     ResettablePhases parent_phases;
 } IngenicCguClass;
+
+IngenicCgu *ingenic_cgu_get_cgu(void);
 
 #endif /* INGENIC_CGU_H */
