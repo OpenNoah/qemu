@@ -26,7 +26,7 @@
 #define INGENIC_TCU_H
 
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
+#include "qemu/timer.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_TCU "ingenic-tcu"
@@ -37,8 +37,12 @@ typedef struct IngenicTcu IngenicTcu;
 typedef struct IngenicTcuTimer
 {
     IngenicTcu *tcu;
-    ptimer_state *ptimer;
+    QEMUTimer qts;
+    int64_t qts_start_ns;
+    uint64_t clk_period;
+    uint64_t clk_ticks;
     bool tcu2;  // TCU2 mode
+    bool enabled;
 
     // Registers
     uint16_t tdfr;
