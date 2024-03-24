@@ -2,6 +2,7 @@
 #define QEMU_FRAMEBUFFER_H
 
 #include "exec/memory.h"
+#include "ui/surface.h"
 
 /* Framebuffer device helper routines.  */
 
