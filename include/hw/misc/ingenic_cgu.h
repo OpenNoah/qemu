@@ -55,6 +55,7 @@ typedef struct IngenicCgu {
     Clock *clk_cclk;
     Clock *clk_mclk;
     Clock *clk_pclk;
+    Clock *clk_lcdpix;
 } IngenicCgu;
 
 typedef struct IngenicCguClass

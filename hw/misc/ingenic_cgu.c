@@ -93,6 +93,12 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
     }
     clock_update(s->clk_pclk, clock_get(s->clk_pll) * pdiv);
 
+    // PCS peripherals
+    uint64_t pcs_period = clock_get(s->clk_pll);
+    if (!(s->CPCCR & BIT(21)))
+        pcs_period *= 2;
+    clock_update(s->clk_lcdpix, pcs_period * (s->LPCDR & 0x07ff));
+
     qemu_log("%s: cclk freq %"PRIu32"\n", __func__, clock_get_hz(s->clk_cclk));
 }
 
@@ -117,6 +123,9 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 0x20:
         data = cgu->CLKGR;
+        break;
+    case 0x64:
+        data = cgu->LPCDR;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
@@ -144,7 +153,6 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         cgu->CPCCR = data & 0xffefffff;
         ingenic_cgu_update_clocks(cgu);
         break;
-
     case 0x10:
         cgu->CPPCR = data & 0xffff03ff;
         if (cgu->CPPCR & BIT(8)) {
@@ -153,11 +161,13 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         }
         ingenic_cgu_update_clocks(cgu);
         break;
-
     case 0x20:
         cgu->CLKGR = data & 0x01ffffff;
         break;
-
+    case 0x64:
+        cgu->LPCDR = data & 0xc00007ff;
+        ingenic_cgu_update_clocks(cgu);
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
         qmp_stop(NULL);
@@ -188,6 +198,7 @@ static const ClockPortInitArray cgu_clks = {
     QDEV_CLOCK_OUT(IngenicCgu, clk_cclk),
     QDEV_CLOCK_OUT(IngenicCgu, clk_mclk),
     QDEV_CLOCK_OUT(IngenicCgu, clk_pclk),
+    QDEV_CLOCK_OUT(IngenicCgu, clk_lcdpix),
     QDEV_CLOCK_END
 };
 
