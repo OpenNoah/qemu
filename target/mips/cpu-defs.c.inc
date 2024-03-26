@@ -155,7 +155,7 @@ const mips_def_t mips_defs[] =
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R1 | ASE_MXU,
-        .mmu_type = MMU_TYPE_JZ4755,
+        .mmu_type = MMU_TYPE_R4000,
     },
     {
         .name = "4KEmR1",

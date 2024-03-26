@@ -201,9 +201,9 @@ int get_physical_address(CPUMIPSState *env, hwaddr *physical,
             ret = TLBRET_BADADDR;
         }
 #endif
-    } else if (env->cpu_model->mmu_type == MMU_TYPE_JZ4755 && (
-                                    (address <= 0x80003FFF) ||
-        ((address >= 0xF4000000) && (address <= 0xF400FFFF)))) {
+    } else if ((env->insn_flags == (CPU_MIPS32R1 | ASE_MXU)) && (
+        ((address >= 0xA0000000) && (address < 0xA0004000)) ||
+        ((address >= 0xF4000000) && (address < 0xF4010000)))) {
         /* Ingenic internal SRAM */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
                                           access_type, mmu_idx,
