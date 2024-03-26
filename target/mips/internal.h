@@ -27,7 +27,6 @@ enum mips_mmu_types {
     MMU_TYPE_R3000,
     MMU_TYPE_R6000,
     MMU_TYPE_R8000,
-    MMU_TYPE_JZ4755,            /* JZ4755 with special sections */
 };
 
 struct mips_def_t {
