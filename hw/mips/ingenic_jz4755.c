@@ -63,11 +63,22 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"));
     env = &cpu->env;
 
-    // 0x80000000 Internal SRAM, 16kB
+    // 0x00000000 Cache may be used as SRAM, 16kB
     MemoryRegion *sys_mem = get_system_memory();
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    memory_region_init_ram(sram, NULL, "sram", 16 * 1024, &error_fatal);
-    memory_region_add_subregion(sys_mem, 0x80000000, sram);
+    MemoryRegion *cached_sram = g_new(MemoryRegion, 1);
+    memory_region_init_ram(cached_sram, NULL, "sram.cached", 16 * 1024, &error_fatal);
+    // Higher priority than SDRAM, to keep cached data when SDRAM gets enabled
+    memory_region_add_subregion_overlap(sys_mem, 0, cached_sram, 1);
+
+    // 0xa0000000 Cache write-through SRAM, 16kB
+    // This is a terrible hack:
+    // Bootloader may write to this uncached address to bypass I/D-cache,
+    // whilst running code from I/D-cache.
+    // Simply ignoring writes to this section should be fine,
+    // as invaliding D-cache would write-back cached data to this address anyway.
+    MemoryRegion *uncached_sram = g_new(MemoryRegion, 1);
+    memory_region_init_ram(uncached_sram, NULL, "sram.uncached", 16 * 1024, &error_fatal);
+    memory_region_add_subregion(sys_mem, 0xa0000000, uncached_sram);
 
     // 0xf4000000 TCSM SRAM, 16kB
     MemoryRegion *tcsm = g_new(MemoryRegion, 1);

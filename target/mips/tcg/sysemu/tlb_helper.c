@@ -473,7 +473,6 @@ void mmu_init(CPUMIPSState *env, const mips_def_t *def)
         no_mmu_init(env, def);
         break;
     case MMU_TYPE_R4000:
-    case MMU_TYPE_JZ4755:
         r4k_mmu_init(env, def);
         break;
     case MMU_TYPE_FMT:
