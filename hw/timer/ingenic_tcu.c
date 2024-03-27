@@ -42,13 +42,15 @@ static void ingenic_tcu_timer_update_cnt(IngenicTcuTimer *timer)
         int64_t delta_ns = now_ns - timer->qts_start_ns;
         // To avoid wrapping around in calculations, advance starting ns time
         if (delta_ns >= 1000000000) {
-            uint64_t inc_ticks = CLOCK_PERIOD_FROM_NS(1000000000) / timer->clk_period;
+            uint64_t inc_ticks = timer->clk_ticks;
+            timer->clk_ticks = 0;
             qemu_log("%s: wrap_before_ns %"PRIi64, __func__, timer->qts_start_ns);
             timer->qts_start_ns += inc_ticks * timer->clk_period / CLOCK_PERIOD_FROM_NS(1);
-            qemu_log(" wrap_after_ns %"PRIi64" ticks %"PRIu64"\n", timer->qts_start_ns, inc_ticks);
             delta_ns = now_ns - timer->qts_start_ns;
+            qemu_log(" wrap_after_ns %"PRIi64" delta_ns %"PRIi64" ticks %"PRIu64"\n", timer->qts_start_ns, delta_ns, inc_ticks);
         }
         delta_ticks = delta_ns * CLOCK_PERIOD_FROM_NS(1) / timer->clk_period - timer->clk_ticks;
+        //qemu_log("%s: now_ns %"PRIu64" delta_ns %"PRIu64"\n", __func__, now_ns, delta_ns);
     }
     //qemu_log("%s: delta_ticks %"PRIu64"\n", __func__, delta_ticks);
 
