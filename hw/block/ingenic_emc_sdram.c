@@ -136,9 +136,9 @@ static void ingenic_emc_sdram_init(Object *obj)
     MemoryRegion *sys_mem = get_system_memory();
 
     // Aliased SDRAM region at 0
-    memory_region_init_alias(&s->alias_mr, obj, "emc.sdram.alias",
+    memory_region_init_alias(&s->origin_alias_mr, obj, "emc.sdram.alias",
                              sys_mem, 0x20000000, 0x08000000);
-    memory_region_add_subregion(sys_mem, 0x00000000, &s->alias_mr);
+    memory_region_add_subregion(sys_mem, 0x00000000, &s->origin_alias_mr);
 
     // EMC registers
     memory_region_init_io(&s->emc_mr, obj, &sdram_ops, s, "emc.sdram", 0x80);
@@ -156,17 +156,37 @@ static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
     MemoryRegion *sys_mem = get_system_memory();
 
     // Add SDRAM banks, now that size is known
-    uint32_t size = s->size[0] ? s->size[0] : 256;
-    s->dmar[0] = 0x20f8;    // TODO reset
-    memory_region_init_ram(&s->mr[0], obj, "emc.sdram.bank0", size, &error_fatal);
-    memory_region_set_enabled(&s->mr[0], false);
-    memory_region_add_subregion(sys_mem, 0x20000000, &s->mr[0]);
+    for (int bank = 0; bank < 2; bank++) {
+        // TODO set as reset value
+        s->dmar[bank] = 0x20f8 + (0x0800 * bank);
+        if (!s->size[bank])
+            continue;
 
-    size = s->size[1] ? s->size[1] : 256;
-    s->dmar[1] = 0x28f8;    // TODO reset
-    memory_region_init_ram(&s->mr[1], obj, "emc.sdram.bank1", size, &error_fatal);
-    memory_region_set_enabled(&s->mr[1], false);
-    memory_region_add_subregion(sys_mem, 0x28000000, &s->mr[1]);
+        // SDRAM bank data section (128MiB) container
+        char name[] = "emc.sdram.bank0";
+        name[14] = '0' + bank;
+        uint32_t bank_size = 128 * 1024 * 1024;
+        memory_region_init(&s->mr[bank], obj, name, bank_size);
+        // Disabled for now
+        memory_region_set_enabled(&s->mr[bank], false);
+        memory_region_add_subregion(sys_mem, (s->dmar[bank] & 0xff00) << 16,
+                                    &s->mr[bank]);
+
+        // Allocate main and alias sections
+        uint32_t num_aliases = bank_size / s->size[bank];
+        s->alias_mr[bank] = g_new(MemoryRegion, num_aliases);
+
+        // Main SDRAM data section at alias[0]
+        memory_region_init_ram(&s->alias_mr[bank][0], obj, "data", s->size[bank], &error_fatal);
+        memory_region_add_subregion(&s->mr[bank], 0, &s->alias_mr[bank][0]);
+
+        // Add aliases to fill the entire SDRAM bank region
+        for (int i = 1; i < num_aliases; i++) {
+            memory_region_init_alias(&s->alias_mr[bank][i], obj, "alias",
+                                     &s->alias_mr[bank][0], 0, s->size[bank]);
+            memory_region_add_subregion(&s->mr[bank], s->size[bank], &s->alias_mr[bank][i]);
+        }
+    }
 }
 
 static void ingenic_emc_sdram_finalize(Object *obj)

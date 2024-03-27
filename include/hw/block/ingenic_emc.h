@@ -107,8 +107,8 @@ typedef struct IngenicEmcSdram {
     // Properties
     uint32_t size[2];
     MemoryRegion mr[2];
-    MemoryRegion alias_mr;
-    MemoryRegion sram_mr;
+    MemoryRegion *alias_mr[2];
+    MemoryRegion origin_alias_mr;
     MemoryRegion emc_mr;
     MemoryRegion dmr_mr;
     // Registers
