@@ -39,7 +39,6 @@ typedef struct IngenicLcd
 
     /* <public> */
     MemoryRegion mr;
-    AddressSpace dma_as;
     MemoryRegionSection fbsection;
     QemuConsole *con;
 
@@ -47,6 +46,8 @@ typedef struct IngenicLcd
     uint32_t xres;
     uint32_t yres;
     uint32_t mode;
+    uint32_t osd_mode[2];
+    bool invalidate;
 
     // Registers
     uint32_t lcdcfg;

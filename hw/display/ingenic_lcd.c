@@ -40,49 +40,35 @@ void qmp_stop(Error **errp);
 static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
                      int width, int deststep)
 {
-#if 0
     IngenicLcd *s = INGENIC_LCD(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     int bpp = surface_bits_per_pixel(surface);
 
     while (width--) {
-        uint16_t rgb565;
-        uint32_t rgb888;
-        uint8_t r, g, b;
-        switch (s->config.bpp) {
-        case 16:
-            rgb565 = lduw_le_p(src);
-            r = ((rgb565 >> 11) & 0x1f) << 3;
-            g = ((rgb565 >>  5) & 0x3f) << 2;
-            b = ((rgb565 >>  0) & 0x1f) << 3;
+        uint32_t tmp;
+        uint8_t r = 0;
+        uint8_t g = 0;
+        uint8_t b = 0;
+        switch (s->mode) {
+        case 565:
+            tmp = *(uint16_t *)src;
             src += 2;
+            r = (tmp >> 8) & 0xf8;
+            g = (tmp >> 3) & 0xfc;
+            b = (tmp << 3) & 0xf8;
             break;
-        case 24:
-            rgb888 = ldl_le_p(src);
-            r = (rgb888 >> 0) & 0xff;
-            g = (rgb888 >> 8) & 0xff;
-            b = (rgb888 >> 16) & 0xff;
-            src += 3;
+        case 666:
+            src++;
+            r = *src++ & 0xfc;
+            g = *src++ & 0xfc;
+            b = *src++ & 0xfc;
             break;
-        case 32:
-            rgb888 = ldl_le_p(src);
-            r = (rgb888 >> 0) & 0xff;
-            g = (rgb888 >> 8) & 0xff;
-            b = (rgb888 >> 16) & 0xff;
-            src += 4;
+        case 888:
+            src++;
+            r = *src++;
+            g = *src++;
+            b = *src++;
             break;
-        default:
-            r = 0;
-            g = 0;
-            b = 0;
-            break;
-        }
-
-        if (s->config.pixo == 0) {
-            /* swap to BGR pixel format */
-            uint8_t tmp = r;
-            r = b;
-            b = tmp;
         }
 
         switch (bpp) {
@@ -98,20 +84,17 @@ static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
             dst += 2;
             break;
         case 24:
-            rgb888 = rgb_to_pixel24(r, g, b);
-            *dst++ = rgb888 & 0xff;
-            *dst++ = (rgb888 >> 8) & 0xff;
-            *dst++ = (rgb888 >> 16) & 0xff;
+            tmp = rgb_to_pixel24(r, g, b);
+            *dst++ = (tmp >>  0) & 0xff;
+            *dst++ = (tmp >>  8) & 0xff;
+            *dst++ = (tmp >> 16) & 0xff;
             break;
         case 32:
             *(uint32_t *)dst = rgb_to_pixel32(r, g, b);
             dst += 4;
             break;
-        default:
-            return;
         }
     }
-#endif
 }
 
 static void ingenic_lcd_update_display(void *opaque)
@@ -122,9 +105,9 @@ static void ingenic_lcd_update_display(void *opaque)
     uint32_t src_width = 0;
     switch (s->mode) {
     case 565:
-    case 666:
         src_width = s->xres * 2;
         break;
+    case 666:
     case 888:
         src_width = s->xres * 4;
         break;
@@ -157,20 +140,23 @@ static void ingenic_lcd_update_display(void *opaque)
     for (;;) {
         uint32_t idesc = 0;
         uint32_t da = s->desc[idesc].lcdda;
-        s->desc[idesc].lcdda  = ldl_le_phys(&s->dma_as, da +  0);
-        s->desc[idesc].lcdsa  = ldl_le_phys(&s->dma_as, da +  4);
-        s->desc[idesc].lcdfid = ldl_le_phys(&s->dma_as, da +  8);
-        s->desc[idesc].lcdcmd = ldl_le_phys(&s->dma_as, da + 12) & 0xf0ffffff;
+        uint32_t desc[8];
+        cpu_physical_memory_read(da, &desc[0], sizeof(desc));
+        s->desc[idesc].lcdda  = desc[0];
+        s->desc[idesc].lcdsa  = desc[1];
+        s->desc[idesc].lcdfid = desc[2];
+        s->desc[idesc].lcdcmd = desc[3];
         if (s->lcdcfg & BIT(28)) {
-            s->desc[idesc].lcdoffs    = ldl_le_phys(&s->dma_as, da + 16) & 0x00ffffff;
-            s->desc[idesc].lcdpw      = ldl_le_phys(&s->dma_as, da + 20) & 0x00ffffff;
-            s->desc[idesc].lcdcnum    = ldl_le_phys(&s->dma_as, da + 24) & 0xff;
-            s->desc[idesc].lcddessize = ldl_le_phys(&s->dma_as, da + 28) & 0x0fff0fff;
+            s->desc[idesc].lcdoffs    = desc[4];
+            s->desc[idesc].lcdpw      = desc[5];
+            s->desc[idesc].lcdcnum    = desc[6];
+            s->desc[idesc].lcddessize = desc[7];
         }
 
         if (s->desc[idesc].lcdcmd & 0xf0000000) {
             qemu_log("%s: Unsupported CMD 0x%"PRIx32"\n",
                      __func__, s->desc[idesc].lcdcmd);
+            qmp_stop(NULL);
             continue;
         } else if (s->lcdcfg & BIT(28)) {
             uint32_t xres = s->desc[idesc].lcddessize & 0xffff;
@@ -178,10 +164,12 @@ static void ingenic_lcd_update_display(void *opaque)
             if (xres != s->xres || yres != s->yres) {
                 qemu_log("%s: Descriptor size mismatch 0x%"PRIx32"\n",
                         __func__, s->desc[idesc].lcddessize);
+                qmp_stop(NULL);
                 continue;
             }
         }
 
+#if 0
         qemu_log("%s: 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32
                  " 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32"\n",
                  __func__,
@@ -189,6 +177,7 @@ static void ingenic_lcd_update_display(void *opaque)
                  s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
                  s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
                  s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
+#endif
 
         framebuffer_update_memory_section(&s->fbsection, get_system_memory(),
                                           s->desc[idesc].lcdsa,
@@ -199,16 +188,24 @@ static void ingenic_lcd_update_display(void *opaque)
     int first = 0, last = 0;
     framebuffer_update_display(surface, &s->fbsection,
                                s->xres, s->yres,
-                               src_width, dest_width, 0, true,
+                               src_width, dest_width, 0, s->invalidate,
                                &draw_row, s, &first, &last);
 
     if (first >= 0)
         dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
+
+    s->invalidate = false;
+}
+
+static void ingenic_lcd_invalidate_display(void * opaque)
+{
+    IngenicLcd *s = INGENIC_LCD(opaque);
+    s->invalidate = true;
 }
 
 static const GraphicHwOps fb_ops = {
-    //.invalidate  = ingenic_lcd_invalidate_display,
-    .gfx_update  = ingenic_lcd_update_display,
+    .invalidate = ingenic_lcd_invalidate_display,
+    .gfx_update = ingenic_lcd_update_display,
 };
 
 static void ingenic_lcd_enable(IngenicLcd *s, bool en)
@@ -236,6 +233,20 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
         else
             s->mode = 565;
     }
+
+    // TODO: Check OSD mode
+    switch (s->lcdctrl & 7) {
+    case 0b100:
+        s->mode = 565;
+        break;
+    case 0b101:
+        s->mode = 888;
+        break;
+    default:
+        s->mode = 0;
+        break;
+    }
+
     qemu_log("%s: LCD enabled: %"PRIu32"x%"PRIu32" mode %"PRIu32"\n",
              __func__, s->xres, s->yres, s->mode);
 
@@ -246,7 +257,6 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
     }
 
     if (!s->con) {
-        address_space_init(&s->dma_as, get_system_memory(), "lcd-dma");
         s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
         qemu_console_resize(s->con, s->xres, s->yres);
     } else {
