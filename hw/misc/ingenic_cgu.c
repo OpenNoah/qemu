@@ -42,10 +42,10 @@ static void ingenic_cgu_reset(Object *obj, ResetType type)
     s->CPPSR  = 0x80000000;
     s->I2SCDR = 0x00000004;
     s->LPCDR  = 0x00000004;
-    s->MSCCDR = 0x00000000;
+    s->msccdr = 0x00000000;
     s->SSICDR = 0x00000000;
     s->CIMCDR = 0x00000004;
-    s->LCR    = 0x000000f8;
+    s->lcr    = 0x000000f8;
     s->CLKGR  = 0x00000000;
     s->OPCR   = 0x00001500;
     s->RSR    = 0x00000001;
@@ -118,6 +118,9 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     case 0x00:
         data = cgu->CPCCR;
         break;
+    case 0x04:
+        data = cgu->lcr;
+        break;
     case 0x10:
         data = cgu->CPPCR;
         break;
@@ -126,6 +129,9 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 0x64:
         data = cgu->LPCDR;
+        break;
+    case 0x68:
+        data = cgu->msccdr;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
@@ -153,6 +159,9 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         cgu->CPCCR = data & 0xffefffff;
         ingenic_cgu_update_clocks(cgu);
         break;
+    case 0x04:
+        cgu->lcr = data & 0xff;
+        break;
     case 0x10:
         cgu->CPPCR = data & 0xffff03ff;
         if (cgu->CPPCR & BIT(8)) {
@@ -167,6 +176,9 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case 0x64:
         cgu->LPCDR = data & 0xc00007ff;
         ingenic_cgu_update_clocks(cgu);
+        break;
+    case 0x68:
+        cgu->msccdr = data & 0x1f;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
