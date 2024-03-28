@@ -47,6 +47,7 @@
 #include "hw/rtc/ingenic_rtc.h"
 #include "hw/timer/ingenic_tcu.h"
 #include "hw/display/ingenic_lcd.h"
+#include "hw/dma/ingenic_dmac.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -98,6 +99,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(emc), &error_fatal);
     MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
     memory_region_add_subregion(ahb0, 0x00010000, emc_mr);
+
+    // 0x13020000 Register DMAC on AHB0
+    IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
+    MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
+    memory_region_add_subregion(ahb0, 0x00020000, dmac_mr);
 
     // 0x13050000 Register LCD controller on AHB0
     IngenicLcd *lcd = INGENIC_LCD(qdev_new(TYPE_INGENIC_LCD));
