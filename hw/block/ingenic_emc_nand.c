@@ -44,7 +44,7 @@ void qmp_stop(Error **errp);
 static void nand_read_page(IngenicEmcNand *nand)
 {
     uint32_t row = nand->addr >> 16;
-    nand->page_ofs = nand->addr % nand->page_size;
+    nand->page_ofs = nand->addr % (nand->page_size * 2);
     if (blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
                   nand->page_size + nand->oob_size, nand->page_buf, 0) < 0) {
         printf("%s: read error at address 0x%"PRIx64"\n", __func__, nand->addr);
@@ -118,6 +118,7 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand->page_ofs = data;  // Maybe? expects data should be 0
             break;
         default:
+            qemu_log("%s: Unknown command %"PRIu8"\n", __func__, nand->prev_cmd);
             qmp_stop(NULL);
         }
 
@@ -140,7 +141,8 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand->addr_ofs = 0;
             break;
         case CMD_READ_2:
-            qemu_log("EMC NAND %"PRIu32" CMD_READ_2 @ 0x%"PRIx64"\n", bank + 1, nand->addr);
+            qemu_log("%s: bank %"PRIu32" CMD_READ_2 @ 0x%"PRIx64"\n",
+                     __func__, bank + 1, nand->addr);
             qemu_irq_lower(emc->io_nand_rb);
             nand_read_page(nand);
             qemu_irq_raise(emc->io_nand_rb);
@@ -151,12 +153,14 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
                 nand->page_buf[i] = nand->nand_id >> (8 * i);
             break;
         default:
+            qemu_log("%s: Unknown command %"PRIu8"\n", __func__, cmd);
             qmp_stop(NULL);
         }
         nand->prev_cmd = cmd;
 
     } else {
         // Data space
+        qemu_log("%s: Writing not implemented yet\n", __func__);
         qmp_stop(NULL);
     }
 }
