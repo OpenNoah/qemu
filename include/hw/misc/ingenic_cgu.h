@@ -34,7 +34,7 @@ typedef struct IngenicCgu {
 
     // Registers
     uint32_t CPCCR;
-    uint32_t LCR;
+    uint8_t  lcr;
     uint32_t RSR;
     uint32_t CPPCR;
     uint32_t CPPSR;
@@ -42,7 +42,7 @@ typedef struct IngenicCgu {
     uint32_t OPCR;
     uint32_t I2SCDR;
     uint32_t LPCDR;
-    uint32_t MSCCDR;
+    uint8_t  msccdr;
     uint32_t SSICDR;
     uint32_t CIMCDR;
 
