@@ -27,6 +27,7 @@ config INGENIC_JZ4755
     select INGENIC_RTC
     select INGENIC_TCU
     select INGENIC_LCD
+    select INGENIC_DMAC
 
 config JAZZ
     bool
