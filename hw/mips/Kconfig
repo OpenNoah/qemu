@@ -18,8 +18,6 @@ config MIPSSIM
 
 config IRIVER_D88
     bool
-    select ISA_BUS
-    select SERIAL_ISA
     select INGENIC_JZ4755
 
 config INGENIC_JZ4755
@@ -35,6 +33,7 @@ config INGENIC_JZ4755
     select INGENIC_LCD
     select INGENIC_DMAC
     select INGENIC_INTC
+    select INGENIC_I2C
 
 config JAZZ
     bool
