@@ -122,6 +122,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 
     IngenicEmc *emc = opaque;
     hwaddr aligned_addr = addr; // & ~3;
+    uint32_t diff = 0;
     qemu_log("EMC write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
     switch (aligned_addr) {
     case 0x00:
@@ -140,16 +141,20 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         emc->SACR[(aligned_addr - 0x34) / 4] = data & 0x0000ffff;
         break;
     case 0x50:
+        diff = (emc->NFCSR ^ data) & 0x55;
         emc->NFCSR = data & 0xff;
-        for (int bank = 0; bank < 4; bank++) {
-            bool nand_mode = !!(emc->NFCSR & BIT(bank * 2));
-            qemu_log("%s: EMC bank %"PRIu32": %s\n", __func__, bank + 1, nand_mode ? "NAND" : "SRAM");
-            if (emc->nand[bank]) {
-                memory_region_set_enabled(&emc->nand[bank]->mr, nand_mode);
-                memory_region_set_enabled(&emc->static_null_mr[bank], !nand_mode);
-            } else if (nand_mode) {
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: Attempting to enable NAND %"PRIu32", but no ingenic-emc-nand attached\n",
-                              __func__, bank + 1);
+        if (diff) {
+            for (int bank = 0; bank < 4; bank++) {
+                bool nand_mode = !!(emc->NFCSR & BIT(bank * 2));
+                qemu_log("%s: EMC bank %"PRIu32": %s\n", __func__, bank + 1, nand_mode ? "NAND" : "SRAM");
+                if (emc->nand[bank]) {
+                    memory_region_set_enabled(&emc->nand[bank]->mr, nand_mode);
+                    memory_region_set_enabled(&emc->static_null_mr[bank], !nand_mode);
+                } else if (nand_mode) {
+                    qemu_log_mask(LOG_GUEST_ERROR, "%s: Attempting to enable NAND %"PRIu32
+                                  ", but no ingenic-emc-nand attached\n",
+                                  __func__, bank + 1);
+                }
             }
         }
         break;
@@ -198,7 +203,6 @@ IngenicEmc *ingenic_emc_register_nand(IngenicEmcNand *nand, uint32_t cs)
 
 static void ingenic_emc_init(Object *obj)
 {
-    qemu_log("%s: enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicEmc *emc = INGENIC_EMC(obj);
     MemoryRegion *sys_mem = get_system_memory();
@@ -230,7 +234,6 @@ static void ingenic_emc_init(Object *obj)
 
 static void ingenic_emc_finalize(Object *obj)
 {
-    qemu_log("%s: enter\n", __func__);
 }
 
 static void ingenic_emc_class_init(ObjectClass *class, void *data)
