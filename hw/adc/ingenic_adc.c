@@ -83,6 +83,9 @@ static uint64_t ingenic_adc_read(void *opaque, hwaddr addr, unsigned size)
     case 0x24:
         data = s->adflt;
         break;
+    case 0x28:
+        data = s->adclk;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
@@ -139,6 +142,9 @@ static void ingenic_adc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case 0x24:
         s->adflt = data & 0x8fff;
+        break;
+    case 0x28:
+        s->adclk = data & 0x007f003f;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
