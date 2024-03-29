@@ -203,9 +203,10 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     for (int i = 0; irqs[i].dev != NULL; i++) {
         qemu_irq irq;
         irq = qdev_get_gpio_in_named(DEVICE(intc), "irq-in", irqs[i].intc_irq);
-        qdev_connect_gpio_out_named(irqs[i].dev, irqs[i].dev_irq_name,
-                                    irqs[i].dev_irq, irq);
+        qdev_connect_gpio_out_named(irqs[i].dev,
+                                    irqs[i].dev_irq_name, irqs[i].dev_irq, irq);
     }
+    qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
 
     return cpu;
 }
