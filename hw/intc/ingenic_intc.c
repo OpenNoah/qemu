@@ -27,9 +27,23 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/timer.h"
 #include "hw/intc/ingenic_intc.h"
 
 void qmp_stop(Error **errp);
+
+static void intc_update(IngenicIntc *s)
+{
+    uint32_t diff = s->icpr;
+    s->icpr = s->icsr & ~s->icmr;
+    diff ^= s->icpr;
+    if (diff) {
+        qemu_set_irq(s->irq, !!s->icpr);
+        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        qemu_log("%s: time %.6f pending 0x%"PRIx32" unmasked 0x%"PRIx32"\n",
+                 __func__, (double)now_ns / 1000000000., s->icsr, s->icpr);
+    }
+}
 
 static void ingenic_intc_reset(Object *obj, ResetType type)
 {
@@ -60,21 +74,23 @@ static uint64_t ingenic_intc_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
 
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
     return data;
 }
 
 static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
 
     IngenicIntc *s = INGENIC_INTC(opaque);
     switch (addr) {
     case 0x08:
         s->icmr |= data & 0xfffffff1;
+        intc_update(s);
         break;
     case 0x0c:
         s->icmr &= ~data & 0xfffffff1;
+        intc_update(s);
         break;
     case 0x10:
         // Datasheet says ICPR is read-only
@@ -84,17 +100,17 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
                       __func__, addr, data);
         qmp_stop(NULL);
     }
-    qemu_log("%s: Enabled: 0x%"PRIx32"\n", __func__, ~s->icmr & ~0x0e);
+    //qemu_log("%s: Enabled: 0x%"PRIx32"\n", __func__, ~s->icmr & ~0x0e);
 }
 
 static void intc_irq(void *opaque, int n, int level)
 {
     IngenicIntc *s = INGENIC_INTC(opaque);
-    s->icsr |= level << n;
-    qemu_log("%s: Pending: 0x%"PRIx32"\n", __func__, s->icsr);
-    s->icpr = s->icsr & ~s->icmr;
-    qemu_log("%s: Interrupts: 0x%"PRIx32"\n", __func__, s->icpr);
-    qemu_set_irq(s->irq, !!s->icpr);
+    if (level)
+        s->icsr |= 1 << n;
+    else
+        s->icsr &= ~(1 << n);
+    intc_update(s);
 }
 
 static MemoryRegionOps intc_ops = {
