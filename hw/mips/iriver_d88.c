@@ -90,7 +90,7 @@ static void mips_iriver_d88_init(MachineState *machine)
     /* Load a BIOS / boot exception handler image. */
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
     if (filename) {
-        bootrom_size = load_image_targphys(filename, 0x1fc00000LL, 8 * 1024);
+        bootrom_size = load_image_mr(filename, bootrom);
         g_free(filename);
     } else {
         bootrom_size = -1;
