@@ -49,6 +49,7 @@
 #include "hw/char/ingenic_uart.h"
 #include "hw/adc/ingenic_adc.h"
 #include "hw/rtc/ingenic_rtc.h"
+#include "hw/i2c/ingenic_i2c.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -172,6 +173,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     // 0x10032000 Register 16550 UART2 on APB
     ingenic_uart_init(apb, 0x00032000, env->irq[6],
         115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
+
+    // 0x10042000 Register I2C on APB
+    IngenicI2c *i2c = INGENIC_I2C(qdev_new(TYPE_INGENIC_I2C));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(i2c), &error_fatal);
+    MemoryRegion *i2c_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(i2c), 0);
+    memory_region_add_subregion(apb, 0x00042000, i2c_mr);
 
     // 0x10070000 Register ADC on APB bus
     IngenicAdc *adc = INGENIC_ADC(qdev_new(TYPE_INGENIC_ADC));
