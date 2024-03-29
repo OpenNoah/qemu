@@ -26,6 +26,7 @@
 #define INGENIC_INTC_H
 
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_INTC "ingenic-intc"
@@ -35,6 +36,7 @@ typedef struct IngenicIntc
 {
     SysBusDevice parent_obj;
     MemoryRegion mr;
+    qemu_irq irq;
 
     // Registers
     uint32_t icsr;  // Source

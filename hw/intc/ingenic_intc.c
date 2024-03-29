@@ -76,18 +76,25 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
     case 0x0c:
         s->icmr &= ~data & 0xfffffff1;
         break;
+    case 0x10:
+        // Datasheet says ICPR is read-only
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
                       __func__, addr, data);
         qmp_stop(NULL);
     }
-    qemu_log("%s: Enabled interrupts: 0x%"PRIx32"\n", __func__, ~s->icmr & ~0x0e);
+    qemu_log("%s: Enabled: 0x%"PRIx32"\n", __func__, ~s->icmr & ~0x0e);
 }
 
 static void intc_irq(void *opaque, int n, int level)
 {
-    //IngenicIntc *intc = opaque;
-    qemu_log("%s: INT %"PRIu32" -> %"PRIu32"\n", __func__, n, level);
+    IngenicIntc *s = INGENIC_INTC(opaque);
+    s->icsr |= level << n;
+    qemu_log("%s: Pending: 0x%"PRIx32"\n", __func__, s->icsr);
+    s->icpr = s->icsr & ~s->icmr;
+    qemu_log("%s: Interrupts: 0x%"PRIx32"\n", __func__, s->icpr);
+    qemu_set_irq(s->irq, !!s->icpr);
 }
 
 static MemoryRegionOps intc_ops = {
@@ -103,6 +110,7 @@ static void ingenic_intc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
 
     qdev_init_gpio_in_named_with_opaque(DEVICE(obj), &intc_irq, s, "irq-in", 32);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq, "irq-out", 1);
 }
 
 static void ingenic_intc_finalize(Object *obj)
