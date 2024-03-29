@@ -75,6 +75,9 @@ static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
         case 0x08:
             data = s->ctrl[idx].ddr;
             break;
+        case 0x10:
+            data = s->ctrl[idx].dcke;
+            break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
             qmp_stop(NULL);
@@ -122,6 +125,9 @@ static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigne
         switch (addr & 0xff) {
         case 0x00:
             s->ctrl[idx].dmac = data & 0xf800030d;
+            break;
+        case 0x10:
+            s->ctrl[idx].dcke = data & 0x0f;
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
