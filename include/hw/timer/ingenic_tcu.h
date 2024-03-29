@@ -26,6 +26,7 @@
 #define INGENIC_TCU_H
 
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 
@@ -34,31 +35,37 @@ OBJECT_DECLARE_TYPE(IngenicTcu, IngenicTcuClass, INGENIC_TCU)
 
 typedef struct IngenicTcu IngenicTcu;
 
-typedef struct IngenicTcuTimer
+typedef struct IngenicTcuTimerCommon
 {
     IngenicTcu *tcu;
     QEMUTimer qts;
     int64_t qts_start_ns;
     uint64_t clk_period;
     uint64_t clk_ticks;
-    bool tcu2;  // TCU2 mode
+    uint32_t top;
+    uint32_t comp;
+    uint32_t cnt;
+    uint32_t irq_top_mask;
+    uint32_t irq_comp_mask;
     bool enabled;
+} IngenicTcuTimerCommon;
+
+typedef struct IngenicTcuTimer
+{
+    IngenicTcu *tcu;
+    IngenicTcuTimerCommon tmr;
 
     // Registers
-    uint16_t tdfr;
-    uint16_t tdhr;
-    uint16_t tcnt;
     uint16_t tcsr;
 } IngenicTcuTimer;
 
 typedef struct IngenicTcu
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
+    uint32_t irq_state;
 
+    // Registers
     struct {
         uint32_t tstr;
         uint32_t tsr;
@@ -66,12 +73,13 @@ typedef struct IngenicTcu
         uint32_t tfr;
         uint32_t tmr;
         IngenicTcuTimer timer[6];
+        qemu_irq irq[2];
     } tcu;
 
     struct {
-        uint32_t ostdr;
-        uint32_t ostcnt;
-        uint16_t ostcsr;
+        uint16_t tcsr;
+        IngenicTcuTimerCommon tmr;
+        qemu_irq irq;
     } ost;
 
     struct {
