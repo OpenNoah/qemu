@@ -53,7 +53,8 @@ typedef struct IngenicDmac
     struct {
         uint32_t dmac;  // Control
         uint32_t dirqp; // Interrupt pending
-        uint32_t ddr;   // Doorbell
+        uint8_t  ddr;   // Doorbell
+        uint8_t  dcke;  // Clock enable
     } ctrl[2];
 } IngenicDmac;
 
