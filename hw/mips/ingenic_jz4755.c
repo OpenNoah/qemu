@@ -39,15 +39,16 @@
 
 #include "hw/mips/ingenic_jz4755.h"
 #include "hw/misc/ingenic_cgu.h"
+#include "hw/intc/ingenic_intc.h"
+#include "hw/dma/ingenic_dmac.h"
+#include "hw/timer/ingenic_tcu.h"
+#include "hw/gpio/ingenic_gpio.h"
 #include "hw/block/ingenic_emc.h"
 #include "hw/block/ingenic_bch.h"
-#include "hw/gpio/ingenic_gpio.h"
+#include "hw/display/ingenic_lcd.h"
 #include "hw/char/ingenic_uart.h"
 #include "hw/adc/ingenic_adc.h"
 #include "hw/rtc/ingenic_rtc.h"
-#include "hw/timer/ingenic_tcu.h"
-#include "hw/display/ingenic_lcd.h"
-#include "hw/dma/ingenic_dmac.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -130,6 +131,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
 
+    // 0x10001000 Register INTC on APB
+    IngenicIntc *intc = INGENIC_INTC(qdev_new(TYPE_INGENIC_INTC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(intc), &error_fatal);
+    MemoryRegion *intc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(intc), 0);
+    memory_region_add_subregion(apb, 0x00001000, intc_mr);
+
     // 0x1000204C Register TCU/OST/WDT on APB
     IngenicTcu *tcu = INGENIC_TCU(qdev_new(TYPE_INGENIC_TCU));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcu), &error_fatal);
@@ -180,6 +187,25 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     // PC27: NAND RB
     qemu_irq nand_rb = qdev_get_gpio_in_named(DEVICE(gpio[2]), "in", 27);
     qdev_connect_gpio_out_named(DEVICE(emc), "nand-rb", 0, nand_rb);
+
+    // Connect interrupts
+    const struct {
+        DeviceState *dev;
+        const char *dev_irq_name;
+        uint32_t dev_irq;
+        uint32_t intc_irq;
+    } irqs[] = {
+        {DEVICE(tcu), "irq-tcu0", 0, 23},
+        {DEVICE(tcu), "irq-tcu1", 0, 22},
+        {DEVICE(tcu), "irq-tcu2", 0, 21},
+        {0}
+    };
+    for (int i = 0; irqs[i].dev != NULL; i++) {
+        qemu_irq irq;
+        irq = qdev_get_gpio_in_named(DEVICE(intc), "irq-in", irqs[i].intc_irq);
+        qdev_connect_gpio_out_named(irqs[i].dev, irqs[i].dev_irq_name,
+                                    irqs[i].dev_irq, irq);
+    }
 
     return cpu;
 }
