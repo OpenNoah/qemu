@@ -123,6 +123,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     IngenicEmc *emc = opaque;
     hwaddr aligned_addr = addr; // & ~3;
     uint32_t diff = 0;
+    uint32_t bank = 0;
     qemu_log("EMC write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
     switch (aligned_addr) {
     case 0x00:
@@ -138,7 +139,9 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case 0x38:
     case 0x3c:
     case 0x40:
-        emc->SACR[(aligned_addr - 0x34) / 4] = data & 0x0000ffff;
+        bank = (addr - 0x34) / 4;
+        emc->SACR[bank] = data & 0x0000ffff;
+        // TODO Update memory region
         break;
     case 0x50:
         diff = (emc->NFCSR ^ data) & 0x55;
@@ -227,8 +230,8 @@ static void ingenic_emc_init(Object *obj)
     // Write gets ignored, read returns 0xff
     for (int bank = 0; bank < 4; bank++) {
         memory_region_init_io(&emc->static_null_mr[bank], OBJECT(emc),
-                              &emc_static_null_ops, NULL, "emc.static.null", 0x00800000);
-        memory_region_add_subregion(sys_mem, static_bank_addr[bank], &emc->static_null_mr[bank]);
+                              &emc_static_null_ops, NULL, "emc.static.null", 0x04000000);
+        memory_region_add_subregion_overlap(sys_mem, static_bank_addr[bank], &emc->static_null_mr[bank], -1);
     }
 }
 
