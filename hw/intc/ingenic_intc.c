@@ -85,11 +85,11 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
     IngenicIntc *s = INGENIC_INTC(opaque);
     switch (addr) {
     case 0x08:
-        s->icmr |= data & 0xfffffff1;
+        s->icmr |= data;
         intc_update(s);
         break;
     case 0x0c:
-        s->icmr &= ~data & 0xfffffff1;
+        s->icmr &= ~data;
         intc_update(s);
         break;
     case 0x10:
