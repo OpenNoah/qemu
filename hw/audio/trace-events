@@ -61,3 +61,7 @@ virtio_snd_handle_rx_xfer(void) "rx queue callback called"
 
 # ar1010.c
 ar1010_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
+
+# ingenic_aic.c
+ingenic_aic_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_aic_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"

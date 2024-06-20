@@ -51,6 +51,7 @@
 #include "hw/rtc/ingenic_rtc.h"
 #include "hw/i2c/ingenic_i2c.h"
 #include "hw/ssi/ingenic_msc.h"
+#include "hw/audio/ingenic_aic.h"
 
 IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 {
@@ -166,6 +167,12 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio[i]), 0);
         memory_region_add_subregion(apb, 0x00010000 + i * 0x0100, gpio_mr);
     }
+
+    // 0x10020000 Register AIC on APB
+    IngenicAic *aic = INGENIC_AIC(qdev_new(TYPE_INGENIC_AIC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(aic), &error_fatal);
+    MemoryRegion *aic_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(aic), 0);
+    memory_region_add_subregion(apb, 0x00020000, aic_mr);
 
     // 0x10021000 Register MSC0 on APB
     IngenicMsc *msc0 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
