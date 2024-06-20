@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "hw/timer/ingenic_tcu.h"
 #include "hw/misc/ingenic_cgu.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -68,8 +69,7 @@ static void tmr_update_clk_period(IngenicTcuTimerCommon *tmr, uint32_t tcsr)
 
     // Configure timer frequency
     tmr->clk_period = clk_period;
-    qemu_log("%s: timer freq %"PRIu32"\n", __func__,
-             (uint32_t)CLOCK_PERIOD_TO_HZ(clk_period));
+    trace_ingenic_tcu_freq(CLOCK_PERIOD_TO_HZ(clk_period));
 }
 
 static void tmr_schedule(IngenicTcuTimerCommon *tmr)
@@ -96,8 +96,7 @@ static void tmr_schedule(IngenicTcuTimerCommon *tmr)
     uint64_t target_ns = tmr->qts_start_ns +
                          target_ticks * tmr->clk_period / CLOCK_PERIOD_FROM_NS(1);
     timer_mod_anticipate_ns(&tmr->qts, target_ns);
-    //qemu_log("%s: count %"PRIu32" half %"PRIu32" full %"PRIu32"\n", __func__, count, half, full);
-    //qemu_log("%s: delta %"PRIu32" target_ns %"PRIu64"\n", __func__, delta_ticks, target_ns);
+    trace_ingenic_tcu_schedule(count, half, full, delta_ticks, target_ns);
 }
 
 static void tmr_update_cnt(IngenicTcuTimerCommon *tmr)
@@ -111,10 +110,10 @@ static void tmr_update_cnt(IngenicTcuTimerCommon *tmr)
         if (delta_ns >= 1000000000) {
             uint64_t inc_ticks = tmr->clk_ticks;
             tmr->clk_ticks = 0;
-            qemu_log("%s: wrap_before_ns %"PRIi64, __func__, tmr->qts_start_ns);
+            int64_t before = tmr->qts_start_ns;
             tmr->qts_start_ns += inc_ticks * tmr->clk_period / CLOCK_PERIOD_FROM_NS(1);
             delta_ns = now_ns - tmr->qts_start_ns;
-            qemu_log(" wrap_after_ns %"PRIi64" delta_ns %"PRIi64" ticks %"PRIu64"\n", tmr->qts_start_ns, delta_ns, inc_ticks);
+            trace_ingenic_tcu_wrap(before, tmr->qts_start_ns, delta_ns, inc_ticks);
         }
         delta_ticks = delta_ns * CLOCK_PERIOD_FROM_NS(1) / tmr->clk_period - tmr->clk_ticks;
         //qemu_log("%s: now_ns %"PRIu64" delta_ns %"PRIu64"\n", __func__, now_ns, delta_ns);
@@ -146,7 +145,7 @@ static void tmr_update_cnt(IngenicTcuTimerCommon *tmr)
 
 static void tmr_cb(void *opaque)
 {
-    //qemu_log("%s: cb %"PRIi64"\n", __func__, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    trace_ingenic_tcu_callback(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     IngenicTcuTimerCommon *tmr = opaque;
     tmr_update_cnt(tmr);
     tmr_schedule(tmr);
@@ -211,7 +210,7 @@ static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_
         if (diff)
             tmr_update_clk_period(&timer->tmr, timer->tcsr);
         if (/* TODO timer->tcu2 && */ (data & BIT(10))) {
-            qemu_log("%s: TODO Clear counter to 0\n", __func__);
+            qemu_log_mask(LOG_UNIMP, "%s: TODO Clear counter to 0\n", __func__);
             qmp_stop(NULL);
             timer->tmr.cnt = 0;
         }
@@ -226,9 +225,7 @@ static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_
 
 static void ingenic_tcu_reset(Object *obj, ResetType type)
 {
-    qemu_log("%s: enter\n", __func__);
     IngenicTcu *s = INGENIC_TCU(obj);
-    // Initial values
     (void)s;
 }
 
@@ -270,15 +267,14 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
             qmp_stop(NULL);
         }
-        //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
     }
+    trace_ingenic_tcu_read(addr, data);
     return data;
 }
 
 static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
+    trace_ingenic_tcu_write(addr, data);
     IngenicTcu *s = INGENIC_TCU(opaque);
     if (addr >= 0x40 && addr < 0xa0) {
         uint32_t timer = (addr - 0x40) / 0x10;
@@ -295,7 +291,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                 s->tcu.ter &= ~data & 0x803f;
 
             // Update timers
-            qemu_log("%s: timer enables 0x%"PRIx16"\n", __func__, s->tcu.ter);
+            trace_ingenic_tcu_enables(s->tcu.ter);
             for (int i = 0; i < 6; i++) {
                 if (diff & BIT(i)) {
                     bool en = s->tcu.ter & BIT(i);
@@ -351,7 +347,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
-                        __func__, addr, data);
+                          __func__, addr, data);
             qmp_stop(NULL);
         }
     }
