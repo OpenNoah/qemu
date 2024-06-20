@@ -28,10 +28,12 @@
 #define JZ4755_H
 
 #include "qemu/typedefs.h"
+#include "hw/gpio/ingenic_gpio.h"
 #include "hw/i2c/i2c.h"
 
 typedef struct IngenicJZ4755 {
     MIPSCPU *cpu;
+    IngenicGpio *gpio[6];
     I2CBus *i2c;
 } IngenicJZ4755;
 
