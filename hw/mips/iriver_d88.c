@@ -45,6 +45,9 @@
 #include "qemu/log.h"
 #include "hw/mips/ingenic_jz4755.h"
 
+#include "hw/audio/ar1010.h"
+#include "hw/input/stmpe2403.h"
+
 typedef struct ResetData {
     MIPSCPU *cpu;
     uint64_t vector;
@@ -104,6 +107,10 @@ static void mips_iriver_d88_init(MachineState *machine)
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;
     }
+
+    // Other chips on I2C bus
+    i2c_slave_create_simple(soc->i2c, TYPE_AR1010, AR1010_I2C_ADDR);
+    i2c_slave_create_simple(soc->i2c, TYPE_STMPE2403, STMPE2403_DEFAULT_I2C_ADDR);
 }
 
 static void mips_iriver_d88_machine_init(MachineClass *mc)
