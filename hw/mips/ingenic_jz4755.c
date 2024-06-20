@@ -159,6 +159,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         char name[] = "PA";
         name[1] = 'A' + i;
         gpio[i] = INGENIC_GPIO(qdev_new(TYPE_INGENIC_GPIO));
+        soc->gpio[i] = gpio[i];
         object_property_set_str(OBJECT(gpio[i]), "name", name, &error_fatal);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio[i]), &error_fatal);
         MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio[i]), 0);
@@ -196,7 +197,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     // Connect GPIOs
     // PC27: NAND RB
-    qemu_irq nand_rb = qdev_get_gpio_in_named(DEVICE(gpio[2]), "in", 27);
+    qemu_irq nand_rb = qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "in", 27);
     qdev_connect_gpio_out_named(DEVICE(emc), "nand-rb", 0, nand_rb);
 
     // Connect interrupts
