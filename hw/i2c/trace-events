@@ -61,3 +61,9 @@ pca954x_read_data(uint8_t value) "PCA954X read data: 0x%02x"
 
 imx_i2c_read(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] -> 0x%02" PRIx64
 imx_i2c_write(const char *id, const char *reg, uint64_t ofs, uint64_t value) "%s:[%s (0x%" PRIx64 ")] <- 0x%02" PRIx64
+
+# ingenic_i2c.c
+
+ingenic_i2c_reg_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_i2c_reg_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
