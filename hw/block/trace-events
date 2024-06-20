@@ -101,3 +101,10 @@ swim_iwmctrl_read(int reg, const char *name, unsigned size, uint64_t value) "reg
 swim_iwmctrl_write(int reg, const char *name, unsigned size, uint64_t value) "reg=%d [%s] size=%u value=0x%"PRIx64
 swim_switch_to_ism(void) "switch from IWM to ISM mode"
 swim_switch_to_iwm(void) "switch from ISM to IWM mode"
+
+# ingenic_emc.c
+ingenic_emc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_emc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+
+# ingenic_emc_nand.c
+ingenic_nand_cmd(uint32_t bank, const char *cmd, uint32_t value) "bank%u %s: 0x%08x"
