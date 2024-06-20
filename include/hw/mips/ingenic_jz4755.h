@@ -28,7 +28,13 @@
 #define JZ4755_H
 
 #include "qemu/typedefs.h"
+#include "hw/i2c/i2c.h"
 
-MIPSCPU *ingenic_jz4755_init(MachineState *machine);
+typedef struct IngenicJZ4755 {
+    MIPSCPU *cpu;
+    I2CBus *i2c;
+} IngenicJZ4755;
+
+IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine);
 
 #endif
