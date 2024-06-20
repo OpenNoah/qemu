@@ -111,6 +111,14 @@ static void mips_iriver_d88_init(MachineState *machine)
     // Other chips on I2C bus
     i2c_slave_create_simple(soc->i2c, TYPE_AR1010, AR1010_I2C_ADDR);
     i2c_slave_create_simple(soc->i2c, TYPE_STMPE2403, STMPE2403_DEFAULT_I2C_ADDR);
+
+    // Connect GPIOs
+    // PE0: Lid detect
+    qemu_irq lid_det = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "in", 0);
+    qemu_irq_lower(lid_det);
+    // PE4: MSC1 CD
+    qemu_irq msc1_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "in", 4);
+    qemu_irq_raise(msc1_cd);
 }
 
 static void mips_iriver_d88_machine_init(MachineClass *mc)
