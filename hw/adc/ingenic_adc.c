@@ -28,6 +28,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/adc/ingenic_adc.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -91,14 +92,13 @@ static uint64_t ingenic_adc_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
 
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_adc_read(addr, data);
     return data;
 }
 
 static void ingenic_adc_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
+    trace_ingenic_adc_write(addr, data);
     IngenicAdc *s = INGENIC_ADC(opaque);
     switch (addr) {
     case 0x00:
