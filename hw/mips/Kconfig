@@ -16,6 +16,8 @@ config MALTA
 config IRIVER_D88
     bool
     select INGENIC_JZ4755
+    select STMPE2403
+    select AR1010
 
 config INGENIC_JZ4755
     bool
