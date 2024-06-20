@@ -26,15 +26,29 @@
 #define INGENIC_I2C_H
 
 #include "hw/sysbus.h"
+#include "hw/i2c/i2c.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_I2C "ingenic-i2c"
 OBJECT_DECLARE_TYPE(IngenicI2c, IngenicI2cClass, INGENIC_I2C)
 
+typedef enum {
+    IngenicI2cIdle = 0,
+    IngenicI2cStart,
+    IngenicI2cWrite,
+    IngenicI2cRead,
+    IngenicI2cNak,
+} IngenicI2cState;
+
 typedef struct IngenicI2c
 {
     SysBusDevice parent_obj;
     MemoryRegion mr;
+
+    I2CBus *bus;
+
+    IngenicI2cState state;
+    int delay;
 
     // Registers
     uint8_t dr;
