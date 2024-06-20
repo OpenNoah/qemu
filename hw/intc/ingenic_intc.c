@@ -29,6 +29,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/intc/ingenic_intc.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -39,9 +40,12 @@ static void intc_update(IngenicIntc *s)
     diff ^= s->icpr;
     if (diff) {
         qemu_set_irq(s->irq, !!s->icpr);
+        trace_ingenic_intc_update(s->icsr, s->icpr);
+#if 0
         int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         qemu_log("%s: time %.6f pending 0x%"PRIx32" unmasked 0x%"PRIx32"\n",
                  __func__, (double)now_ns / 1000000000., s->icsr, s->icpr);
+#endif
     }
 }
 
@@ -74,14 +78,13 @@ static uint64_t ingenic_intc_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
 
-    //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_intc_read(addr, data);
     return data;
 }
 
 static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    //qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
+    trace_ingenic_intc_write(addr, data);
     IngenicIntc *s = INGENIC_INTC(opaque);
     switch (addr) {
     case 0x08:
