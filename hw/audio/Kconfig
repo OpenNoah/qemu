@@ -59,3 +59,6 @@ config VIRTIO_SND
 config AR1010
     bool
     depends on I2C
+
+config INGENIC_AIC
+    bool
