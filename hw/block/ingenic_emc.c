@@ -107,7 +107,7 @@ static uint64_t ingenic_emc_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    qemu_log("EMC read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    trace_ingenic_emc_read(addr, data);
     return data;
 }
 
@@ -124,7 +124,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     hwaddr aligned_addr = addr; // & ~3;
     uint32_t diff = 0;
     uint32_t bank = 0;
-    qemu_log("EMC write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    trace_ingenic_emc_write(addr, data);
     switch (aligned_addr) {
     case 0x00:
         emc->BCR = (data & 0x00000004) | 0x00000001;
