@@ -51,3 +51,8 @@ npcm7xx_smbus_recv_fifo(const char *id, uint8_t received, uint8_t expected) "%s 
 
 pca954x_write_bytes(uint8_t value) "PCA954X write data: 0x%02x"
 pca954x_read_data(uint8_t value) "PCA954X read data: 0x%02x"
+
+# ingenic_i2c.c
+ingenic_i2c_reg_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_i2c_reg_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
