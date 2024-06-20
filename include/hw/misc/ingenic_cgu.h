@@ -32,20 +32,6 @@ typedef struct IngenicCgu {
 
     MemoryRegion mr;
 
-    // Registers
-    uint32_t CPCCR;
-    uint8_t  lcr;
-    uint32_t RSR;
-    uint32_t CPPCR;
-    uint32_t CPPSR;
-    uint32_t CLKGR;
-    uint32_t OPCR;
-    uint32_t I2SCDR;
-    uint32_t LPCDR;
-    uint8_t  msccdr;
-    uint32_t SSICDR;
-    uint32_t CIMCDR;
-
     // Clocks
     uint32_t ext_freq;
     uint32_t rtc_freq;
@@ -56,6 +42,22 @@ typedef struct IngenicCgu {
     Clock *clk_mclk;
     Clock *clk_pclk;
     Clock *clk_lcdpix;
+
+    // Registers
+    struct {
+        uint32_t cpccr;
+        uint8_t  lcr;
+        uint32_t rsr;
+        uint32_t cppcr;
+        uint32_t cppsr;
+        uint32_t clkgr;
+        uint32_t opcr;
+        uint16_t i2scdr;
+        uint32_t lpcdr;
+        uint8_t  msccdr;
+        uint32_t ssicdr;
+        uint32_t cimcdr;
+    } reg;
 } IngenicCgu;
 
 typedef struct IngenicCguClass
