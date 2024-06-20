@@ -177,3 +177,10 @@ macfb_ctrl_write(uint64_t addr, uint64_t value, unsigned int size) "addr 0x%"PRI
 macfb_sense_read(uint32_t value) "video sense: 0x%"PRIx32
 macfb_sense_write(uint32_t value) "video sense: 0x%"PRIx32
 macfb_update_mode(uint32_t width, uint32_t height, uint8_t depth) "setting mode to width %"PRId32 " height %"PRId32 " size %d"
+
+# ingenic_lcd.c
+ingenic_lcd_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_lcd_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_lcd_enable(int en) "%u"
+ingenic_lcd_mode(uint32_t xres, uint32_t yres, uint32_t mode) "%ux%u mode=%u"
+ingenic_lcd_desc(uint32_t dda, uint32_t dsa, uint32_t fid, uint32_t cmd, uint32_t offs, uint32_t pw, uint32_t cnum, uint32_t size) "dda=0x%x dsa=0x%x fid=0x%x cmd=0x%x offs=0x%x pw=0x%x cnum=0x%x size=0x%x"

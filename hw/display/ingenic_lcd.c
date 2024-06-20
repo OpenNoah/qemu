@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 #include "exec/address-spaces.h"
 #include "hw/display/ingenic_lcd.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -154,30 +155,26 @@ static void ingenic_lcd_update_display(void *opaque)
         }
 
         if (s->desc[idesc].lcdcmd & 0xf0000000) {
-            qemu_log("%s: Unsupported CMD 0x%"PRIx32"\n",
-                     __func__, s->desc[idesc].lcdcmd);
+            qemu_log_mask(LOG_UNIMP, "%s: Unsupported CMD 0x%"PRIx32"\n",
+                          __func__, s->desc[idesc].lcdcmd);
             qmp_stop(NULL);
             continue;
         } else if (s->lcdcfg & BIT(28)) {
             uint32_t xres = s->desc[idesc].lcddessize & 0xffff;
             uint32_t yres = s->desc[idesc].lcddessize >> 16;
             if (xres != s->xres || yres != s->yres) {
-                qemu_log("%s: Descriptor size mismatch 0x%"PRIx32"\n",
-                        __func__, s->desc[idesc].lcddessize);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: Descriptor size mismatch 0x%"PRIx32"\n",
+                              __func__, s->desc[idesc].lcddessize);
                 qmp_stop(NULL);
                 continue;
             }
         }
 
-#if 0
-        qemu_log("%s: 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32
-                 " 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32"\n",
-                 __func__,
-                 s->desc[idesc].lcdda,   s->desc[idesc].lcdsa,
-                 s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
-                 s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
-                 s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
-#endif
+        trace_ingenic_lcd_desc(s->desc[idesc].lcdda,   s->desc[idesc].lcdsa,
+                               s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
+                               s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
+                               s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
 
         framebuffer_update_memory_section(&s->fbsection, get_system_memory(),
                                           s->desc[idesc].lcdsa,
@@ -210,9 +207,10 @@ static const GraphicHwOps fb_ops = {
 
 static void ingenic_lcd_enable(IngenicLcd *s, bool en)
 {
+    trace_ingenic_lcd_enable(en);
+
     if (!en) {
         // LCD controller disabled
-        qemu_log("%s: LCD disabled\n", __func__);
         if (s->con)
             graphic_console_close(s->con);
         s->con = 0;
@@ -247,11 +245,10 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
         break;
     }
 
-    qemu_log("%s: LCD enabled: %"PRIu32"x%"PRIu32" mode %"PRIu32"\n",
-             __func__, s->xres, s->yres, s->mode);
+    trace_ingenic_lcd_mode(s->xres, s->yres, s->mode);
 
     if (!s->xres || !s->yres || !s->mode) {
-        qemu_log("%s: Unsupported configuration\n", __func__);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unsupported configuration\n", __func__);
         qmp_stop(NULL);
         return;
     }
@@ -260,17 +257,16 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
         s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
         qemu_console_resize(s->con, s->xres, s->yres);
     } else {
-        qemu_log("%s: TODO %u\n", __func__, __LINE__);
+        qemu_log_mask(LOG_UNIMP, "%s: TODO %u\n", __func__, __LINE__);
         qmp_stop(NULL);
     }
 }
 
 static void ingenic_lcd_reset(Object *obj, ResetType type)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicLcd *s = INGENIC_LCD(obj);
     (void)s;
-    // Initial values
+    // TODO Initial values
 }
 
 static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
@@ -337,14 +333,13 @@ static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
 
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_lcd_read(addr, data);
     return data;
 }
 
 static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
+    trace_ingenic_lcd_write(addr, data);
     IngenicLcd *s = INGENIC_LCD(opaque);
     uint32_t diff = data;
     switch (addr) {
@@ -420,7 +415,6 @@ static MemoryRegionOps lcd_ops = {
 
 static void ingenic_lcd_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicLcd *s = INGENIC_LCD(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &lcd_ops, s, "lcd", 0x10000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
