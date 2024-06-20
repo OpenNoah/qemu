@@ -51,8 +51,10 @@
 #include "hw/rtc/ingenic_rtc.h"
 #include "hw/i2c/ingenic_i2c.h"
 
-MIPSCPU *ingenic_jz4755_init(MachineState *machine)
+IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 {
+    IngenicJZ4755 *soc = g_new(IngenicJZ4755, 1);
+
     MIPSCPU *cpu;
     CPUMIPSState *env;
 
@@ -65,6 +67,7 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     // machine->cpu_type = "XBurstR1-mips-cpu";
     cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"));
     env = &cpu->env;
+    soc->cpu = cpu;
 
     // 0x00000000 Cache may be used as SRAM, 16kB
     MemoryRegion *sys_mem = get_system_memory();
@@ -179,6 +182,7 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(i2c), &error_fatal);
     MemoryRegion *i2c_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(i2c), 0);
     memory_region_add_subregion(apb, 0x00042000, i2c_mr);
+    soc->i2c = I2C_BUS(qdev_get_child_bus(DEVICE(i2c), "i2c"));
 
     // 0x10070000 Register ADC on APB bus
     IngenicAdc *adc = INGENIC_ADC(qdev_new(TYPE_INGENIC_ADC));
@@ -215,5 +219,5 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
 
-    return cpu;
+    return soc;
 }
