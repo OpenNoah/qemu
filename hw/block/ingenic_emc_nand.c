@@ -30,6 +30,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
+#include "trace.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
@@ -141,8 +142,7 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand->addr_ofs = 0;
             break;
         case CMD_READ_2:
-            qemu_log("%s: bank %"PRIu32" CMD_READ_2 @ 0x%"PRIx64"\n",
-                     __func__, bank + 1, nand->addr);
+            trace_ingenic_nand_cmd(bank + 1, "CMD_READ_2", nand->addr);
             qemu_irq_lower(emc->io_nand_rb);
             nand_read_page(nand);
             qemu_irq_raise(emc->io_nand_rb);
