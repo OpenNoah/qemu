@@ -58,3 +58,6 @@ virtio_snd_handle_event(void) "event queue callback called"
 virtio_snd_pcm_stream_flush(uint32_t stream) "flushing stream %"PRIu32
 virtio_snd_handle_tx_xfer(void) "tx queue callback called"
 virtio_snd_handle_rx_xfer(void) "rx queue callback called"
+
+# ar1010.c
+ar1010_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
