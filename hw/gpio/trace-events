@@ -33,6 +33,6 @@ aspeed_gpio_read(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0
 aspeed_gpio_write(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0x%" PRIx64
 
 # ingenic_gpio.c
-ingenic_gpio_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-ingenic_gpio_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-ingenic_gpio_irq(const char *name, uint32_t n, uint32_t level) "GPIO %s %u -> %u"
+ingenic_gpio_write(const char *name, uint32_t addr, uint32_t data) "%s *0x%x = 0x%x"
+ingenic_gpio_read(const char *name, uint32_t addr, uint32_t data) "*%s 0x%x = 0x%x"
+ingenic_gpio_irq(const char *name, uint32_t n, uint32_t level) "%s %u -> %u"

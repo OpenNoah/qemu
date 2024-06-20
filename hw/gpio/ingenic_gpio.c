@@ -96,7 +96,7 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    trace_ingenic_gpio_read(addr, data);
+    trace_ingenic_gpio_read(gpio->name, addr, data);
     return data;
 }
 
@@ -111,7 +111,7 @@ static void ingenic_gpio_write(void *opaque, hwaddr addr, uint64_t data, unsigne
 
     IngenicGpio *gpio = opaque;
     hwaddr aligned_addr = addr; // & ~3;
-    trace_ingenic_gpio_write(addr, data);
+    trace_ingenic_gpio_write(gpio->name, addr, data);
     switch (aligned_addr) {
     case 0x14:
         gpio->dat |= data;
