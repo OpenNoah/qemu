@@ -64,7 +64,7 @@ static void mips_iriver_d88_init(MachineState *machine)
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *bootrom = g_new(MemoryRegion, 1);
-    MIPSCPU *cpu;
+    IngenicJZ4755 *soc;
     CPUMIPSState *env;
     ResetData *reset_info;
     int bootrom_size;
@@ -73,11 +73,11 @@ static void mips_iriver_d88_init(MachineState *machine)
     //machine->ram_size = 64 * 1024 * 1024;
 
     /* Init CPUs. */
-    cpu = ingenic_jz4755_init(machine);
-    env = &cpu->env;
+    soc = ingenic_jz4755_init(machine);
+    env = &soc->cpu->env;
 
     reset_info = g_new0(ResetData, 1);
-    reset_info->cpu = cpu;
+    reset_info->cpu = soc->cpu;
     reset_info->vector = env->active_tc.PC;
     qemu_register_reset(main_cpu_reset, reset_info);
 
