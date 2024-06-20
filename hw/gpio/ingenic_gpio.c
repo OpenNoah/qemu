@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -95,7 +96,7 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    qemu_log("GPIO %s read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx32"\n", gpio->name, addr, (uint32_t)size, data);
+    trace_ingenic_gpio_read(addr, data);
     return data;
 }
 
@@ -110,7 +111,7 @@ static void ingenic_gpio_write(void *opaque, hwaddr addr, uint64_t data, unsigne
 
     IngenicGpio *gpio = opaque;
     hwaddr aligned_addr = addr; // & ~3;
-    qemu_log("GPIO %s write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", gpio->name, addr, (uint32_t)size, data);
+    trace_ingenic_gpio_write(addr, data);
     switch (aligned_addr) {
     case 0x14:
         gpio->dat |= data;
@@ -174,7 +175,7 @@ static MemoryRegionOps gpio_ops = {
 static void gpio_input_irq(void *opaque, int n, int level)
 {
     IngenicGpio *gpio = opaque;
-    qemu_log("%s: GPIO %s%"PRIu32" -> %"PRIu32"\n", __func__, gpio->name, n, level);
+    trace_ingenic_gpio_irq(gpio->name, n, level);
     uint32_t mask = 1 << n;
     uint32_t val = level << n;
     // Update interrupt flag
