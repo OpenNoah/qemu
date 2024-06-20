@@ -30,6 +30,18 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/ingenic_cgu.h"
 
+#define REG_CPCCR   0x00
+#define REG_LCR     0x04
+#define REG_CPPCR   0x10
+#define REG_CPPSR   0x14
+#define REG_CLKGR   0x20
+#define REG_OPCR    0x24
+#define REG_I2SCDR  0x60
+#define REG_LPCDR   0x64
+#define REG_MSCCDR  0x68
+#define REG_SSICDR  0x74
+#define REG_CIMCDR  0x7c
+
 void qmp_stop(Error **errp);
 
 static void ingenic_cgu_reset(Object *obj, ResetType type)
@@ -37,28 +49,28 @@ static void ingenic_cgu_reset(Object *obj, ResetType type)
     IngenicCgu *s = INGENIC_CGU(obj);
 
     // Initial register values
-    s->CPCCR  = 0x42040000;
-    s->CPCCR  = 0x28080011;
-    s->CPPSR  = 0x80000000;
-    s->I2SCDR = 0x00000004;
-    s->LPCDR  = 0x00000004;
-    s->msccdr = 0x00000000;
-    s->SSICDR = 0x00000000;
-    s->CIMCDR = 0x00000004;
-    s->lcr    = 0x000000f8;
-    s->CLKGR  = 0x00000000;
-    s->OPCR   = 0x00001500;
-    s->RSR    = 0x00000001;
+    s->reg.cpccr  = 0x42040000;
+    s->reg.cpccr  = 0x28080011;
+    s->reg.cppsr  = 0x80000000;
+    s->reg.i2scdr = 0x00000004;
+    s->reg.lpcdr  = 0x00000004;
+    s->reg.msccdr = 0x00000000;
+    s->reg.ssicdr = 0x00000000;
+    s->reg.cimcdr = 0x00000004;
+    s->reg.lcr    = 0x000000f8;
+    s->reg.clkgr  = 0x00000000;
+    s->reg.opcr   = 0x00001500;
+    s->reg.rsr    = 0x00000001;
 }
 
 static void ingenic_cgu_update_clocks(IngenicCgu *s)
 {
     // Update clock frequencies
-    if ((s->CPPCR & (BIT(8) | BIT(9))) == BIT(8)) {
+    if ((s->reg.cppcr & (BIT(8) | BIT(9))) == BIT(8)) {
         // Switch to PLL
-        uint32_t m = (s->CPPCR >> 23) + 2;
-        uint32_t n = ((s->CPPCR >> 18) & 0x1f) + 2;
-        uint32_t od = (s->CPPCR >> 16) & 3;
+        uint32_t m = (s->reg.cppcr >> 23) + 2;
+        uint32_t n = ((s->reg.cppcr >> 18) & 0x1f) + 2;
+        uint32_t od = (s->reg.cppcr >> 16) & 3;
         static const uint32_t od_map[] = {1, 2, 2, 4};
         od = od_map[od];
         clock_update(s->clk_pll, clock_get(s->clk_ext) * (n * od) / m);
@@ -70,7 +82,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
     static const uint32_t div_map[16] = {1, 2, 3, 4, 6, 8, 0};
 
     // CCLK
-    uint32_t cdiv = div_map[s->CPCCR & 0x0f];
+    uint32_t cdiv = div_map[s->reg.cpccr & 0x0f];
     if (unlikely(cdiv == 0)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: cclk div by 0\n", __func__);
         cdiv = 1;
@@ -78,7 +90,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
     clock_update(s->clk_cclk, clock_get(s->clk_pll) * cdiv);
 
     // MCLK
-    uint32_t mdiv = div_map[(s->CPCCR >> 12) & 0x0f];
+    uint32_t mdiv = div_map[(s->reg.cpccr >> 12) & 0x0f];
     if (unlikely(mdiv == 0)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: mclk div by 0\n", __func__);
         mdiv = 1;
@@ -86,7 +98,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
     clock_update(s->clk_mclk, clock_get(s->clk_pll) * mdiv);
 
     // PCLK
-    uint32_t pdiv = div_map[(s->CPCCR >> 8) & 0x0f];
+    uint32_t pdiv = div_map[(s->reg.cpccr >> 8) & 0x0f];
     if (unlikely(pdiv == 0)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: pdiv div by 0\n", __func__);
         pdiv = 1;
@@ -95,9 +107,9 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
 
     // PCS peripherals
     uint64_t pcs_period = clock_get(s->clk_pll);
-    if (!(s->CPCCR & BIT(21)))
+    if (!(s->reg.cpccr & BIT(21)))
         pcs_period *= 2;
-    clock_update(s->clk_lcdpix, pcs_period * (s->LPCDR & 0x07ff));
+    clock_update(s->clk_lcdpix, pcs_period * (s->reg.lpcdr & 0x07ff));
 
     trace_ingenic_cgu_cclk_freq(clock_get_hz(s->clk_cclk));
 }
@@ -115,23 +127,26 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     hwaddr aligned_addr = addr; // & ~3;
     uint64_t data = 0;
     switch (aligned_addr) {
-    case 0x00:
-        data = cgu->CPCCR;
+    case REG_CPCCR:
+        data = cgu->reg.cpccr;
         break;
-    case 0x04:
-        data = cgu->lcr;
+    case REG_LCR:
+        data = cgu->reg.lcr;
         break;
-    case 0x10:
-        data = cgu->CPPCR;
+    case REG_CPPCR:
+        data = cgu->reg.cppcr;
         break;
-    case 0x20:
-        data = cgu->CLKGR;
+    case REG_CLKGR:
+        data = cgu->reg.clkgr;
         break;
-    case 0x64:
-        data = cgu->LPCDR;
+    case REG_I2SCDR:
+        data = cgu->reg.i2scdr;
         break;
-    case 0x68:
-        data = cgu->msccdr;
+    case REG_LPCDR:
+        data = cgu->reg.lpcdr;
+        break;
+    case REG_MSCCDR:
+        data = cgu->reg.msccdr;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
@@ -155,30 +170,33 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     hwaddr aligned_addr = addr; // & ~3;
     trace_ingenic_cgu_write(addr, data, size);
     switch (aligned_addr) {
-    case 0x00:
-        cgu->CPCCR = data & 0xffefffff;
+    case REG_CPCCR:
+        cgu->reg.cpccr = data & 0xffefffff;
         ingenic_cgu_update_clocks(cgu);
         break;
-    case 0x04:
-        cgu->lcr = data & 0xff;
+    case REG_LCR:
+        cgu->reg.lcr = data & 0xff;
         break;
-    case 0x10:
-        cgu->CPPCR = data & 0xffff03ff;
-        if (cgu->CPPCR & BIT(8)) {
+    case REG_CPPCR:
+        cgu->reg.cppcr = data & 0xffff03ff;
+        if (cgu->reg.cppcr & BIT(8)) {
             // PLL ON
-            cgu->CPPCR |= BIT(10);
+            cgu->reg.cppcr |= BIT(10);
         }
         ingenic_cgu_update_clocks(cgu);
         break;
-    case 0x20:
-        cgu->CLKGR = data & 0x01ffffff;
+    case REG_CLKGR:
+        cgu->reg.clkgr = data & 0x01ffffff;
         break;
-    case 0x64:
-        cgu->LPCDR = data & 0xc00007ff;
+    case REG_I2SCDR:
+        cgu->reg.i2scdr = data & 0x01ff;
+        break;
+    case REG_LPCDR:
+        cgu->reg.lpcdr = data & 0xc00007ff;
         ingenic_cgu_update_clocks(cgu);
         break;
-    case 0x68:
-        cgu->msccdr = data & 0x1f;
+    case REG_MSCCDR:
+        cgu->reg.msccdr = data & 0x1f;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
