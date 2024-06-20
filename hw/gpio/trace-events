@@ -31,3 +31,8 @@ sifive_gpio_update_output_irq(int64_t line, int64_t value) "line %" PRIi64 " val
 # aspeed_gpio.c
 aspeed_gpio_read(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0x%" PRIx64
 aspeed_gpio_write(uint64_t offset, uint64_t value) "offset: 0x%" PRIx64 " value 0x%" PRIx64
+
+# ingenic_gpio.c
+ingenic_gpio_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_gpio_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_gpio_irq(const char *name, uint32_t n, uint32_t level) "GPIO %s %u -> %u"
