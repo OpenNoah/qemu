@@ -50,6 +50,7 @@
 #include "hw/adc/ingenic_adc.h"
 #include "hw/rtc/ingenic_rtc.h"
 #include "hw/i2c/ingenic_i2c.h"
+#include "hw/ssi/ingenic_msc.h"
 
 IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 {
@@ -165,6 +166,18 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         MemoryRegion *gpio_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(gpio[i]), 0);
         memory_region_add_subregion(apb, 0x00010000 + i * 0x0100, gpio_mr);
     }
+
+    // 0x10021000 Register MSC0 on APB
+    IngenicMsc *msc0 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(msc0), &error_fatal);
+    MemoryRegion *msc0_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc0), 0);
+    memory_region_add_subregion(apb, 0x00021000, msc0_mr);
+
+    // 0x10022000 Register MSC1 on APB
+    IngenicMsc *msc1 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(msc1), &error_fatal);
+    MemoryRegion *msc1_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc1), 0);
+    memory_region_add_subregion(apb, 0x00022000, msc1_mr);
 
     // 0x10030000 Register 16550 UART0 on APB
     ingenic_uart_init(apb, 0x00030000, env->irq[4],

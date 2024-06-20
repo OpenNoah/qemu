@@ -72,3 +72,8 @@ pl181_data_engine_idle(void) "data engine idle"
 # aspeed_sdhci.c
 aspeed_sdhci_read(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
 aspeed_sdhci_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
+
+# ingenic_msc.c
+ingenic_msc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_msc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_msc_start_op(uint8_t cmd, uint8_t resp, uint32_t arg) "CMD%u R%u arg 0x%08x"
