@@ -51,7 +51,7 @@ typedef struct IngenicCgu {
         uint32_t cppcr;
         uint32_t cppsr;
         uint32_t clkgr;
-        uint32_t opcr;
+        uint16_t opcr;
         uint16_t i2scdr;
         uint32_t lpcdr;
         uint8_t  msccdr;
