@@ -315,3 +315,4 @@ loongarch_extioi_writew(uint64_t addr, uint64_t val) "addr: 0x%"PRIx64 "val: 0x%
 ingenic_intc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_intc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_intc_update(uint32_t pending, uint32_t unmasked) "pendind=0x%08x unmasked=0x%08x"
+ingenic_intc_enable(uint32_t masked) "masked=0x%08x"
