@@ -37,6 +37,7 @@
 
 #define CMD_READ        0x00
 #define CMD_READ_2      0x30
+#define CMD_READ_STATUS 0x70
 #define CMD_READ_ID     0x90
 #define CMD_RESET       0xff
 
@@ -149,13 +150,17 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand_read_page(nand);
             qemu_irq_raise(emc->io_nand_rb);
             break;
+        case CMD_READ_STATUS:
+            nand->page_ofs = 0;
+            nand->page_buf[0] = nand->fail;
+            break;
         case CMD_READ_ID:
             nand->page_ofs = 0;
             for (int i = 0; i < 8; i++)
                 nand->page_buf[i] = nand->nand_id >> (8 * i);
             break;
         default:
-            qemu_log("%s: Unknown command %"PRIu8"\n", __func__, cmd);
+            qemu_log("%s: Unknown command 0x%"PRIx8"\n", __func__, cmd);
             qmp_stop(NULL);
         }
         nand->prev_cmd = cmd;

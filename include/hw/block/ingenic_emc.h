@@ -84,6 +84,7 @@ typedef struct IngenicEmcNand {
     uint32_t cs;
     // States
     uint8_t prev_cmd;
+    uint8_t fail;
     uint32_t addr_ofs;
     uint64_t addr;
     // Read/write buffers
