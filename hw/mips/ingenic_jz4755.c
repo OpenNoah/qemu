@@ -52,6 +52,7 @@
 #include "hw/i2c/ingenic_i2c.h"
 #include "hw/ssi/ingenic_msc.h"
 #include "hw/audio/ingenic_aic.h"
+#include "hw/usb/ingenic_udc.h"
 
 IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 {
@@ -112,6 +113,12 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb0, 0x00020000, dmac_mr);
+
+    // 0x13040000 Register UDC on AHB0
+    IngenicUdc *udc = INGENIC_UDC(qdev_new(TYPE_INGENIC_UDC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(udc), &error_fatal);
+    MemoryRegion *udc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(udc), 0);
+    memory_region_add_subregion(ahb0, 0x00040000, udc_mr);
 
     // 0x13050000 Register LCD controller on AHB0
     IngenicLcd *lcd = INGENIC_LCD(qdev_new(TYPE_INGENIC_LCD));
