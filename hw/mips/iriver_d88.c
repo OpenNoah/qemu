@@ -118,9 +118,12 @@ static void mips_iriver_d88_init(MachineState *machine)
     // PE0: Lid detect
     qemu_irq lid_det = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "in", 0);
     qemu_irq_lower(lid_det);
-    // PE4: MSC1 CD
+    // PE4: MSC1 CD, active low
     qemu_irq msc1_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "in", 4);
     qemu_irq_raise(msc1_cd);
+    // PE6: UDC CD, active high
+    qemu_irq udc_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "in", 6);
+    qemu_irq_lower(udc_cd);
 }
 
 static void mips_iriver_d88_machine_init(MachineClass *mc)
