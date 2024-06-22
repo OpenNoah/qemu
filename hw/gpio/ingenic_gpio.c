@@ -199,7 +199,6 @@ static void gpio_input_irq(void *opaque, int n, int level)
 
 static void ingenic_gpio_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicGpio *s = INGENIC_GPIO(obj);
 
@@ -213,7 +212,6 @@ static void ingenic_gpio_init(Object *obj)
 
 static void ingenic_gpio_finalize(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
 }
 
 static Property ingenic_gpio_properties[] = {
