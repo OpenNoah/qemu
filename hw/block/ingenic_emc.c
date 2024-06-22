@@ -40,15 +40,19 @@ static const uint32_t static_bank_addr[] = {
 
 static uint64_t ingenic_emc_static_null_read(void *opaque, hwaddr addr, unsigned size)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: Read with no device attached @ "
-                  HWADDR_FMT_plx "/%"PRIu32"\n", __func__, addr, size);
+    uint32_t bank = (uint64_t)opaque;
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %u read with no device attached @ "
+                  HWADDR_FMT_plx "/%"PRIu32"\n",
+                  __func__, bank + 1, addr, size);
     return __UINT64_MAX__;
 }
 
 static void ingenic_emc_static_null_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: Write with no device attached @ "
-                  HWADDR_FMT_plx "/%"PRIu32": 0x%"PRIx64"\n", __func__, addr, size, data);
+    uint32_t bank = (uint64_t)opaque;
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %u write with no device attached @ "
+                  HWADDR_FMT_plx "/%"PRIu32": 0x%"PRIx64"\n",
+                  __func__, bank + 1, addr, size, data);
 }
 
 static MemoryRegionOps emc_static_null_ops = {
@@ -230,7 +234,7 @@ static void ingenic_emc_init(Object *obj)
     // Write gets ignored, read returns 0xff
     for (int bank = 0; bank < 4; bank++) {
         memory_region_init_io(&emc->static_null_mr[bank], OBJECT(emc),
-                              &emc_static_null_ops, NULL, "emc.static.null", 0x04000000);
+                              &emc_static_null_ops, (void *)(uintptr_t)bank, "emc.static.null", 0x04000000);
         memory_region_add_subregion_overlap(sys_mem, static_bank_addr[bank], &emc->static_null_mr[bank], -1);
     }
 }
