@@ -65,3 +65,7 @@ ar1010_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
 # ingenic_aic.c
 ingenic_aic_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_aic_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+
+# wm8731.c
+wm8731_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
+wm8731_reg_write(uint8_t reg, uint8_t value) "*0x%02x = 0x%02x"
