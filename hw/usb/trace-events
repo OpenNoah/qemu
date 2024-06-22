@@ -366,3 +366,8 @@ canokey_handle_data_out(uint8_t ep_out, uint32_t out_len) "ep %d len %d"
 canokey_handle_data_in(uint8_t ep_in, uint32_t in_len) "ep %d len %d"
 canokey_realize(void)
 canokey_unrealize(void)
+
+# ingenic_udc.c
+ingenic_udc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_udc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_udc_irq(int source, int level) "source=%d level=%d"
