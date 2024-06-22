@@ -13,8 +13,9 @@ config MIPSSIM
 config IRIVER_D88
     bool
     select INGENIC_JZ4755
-    select STMPE2403
     select AR1010
+    select WM8731
+    select STMPE2403
 
 config INGENIC_JZ4755
     bool
