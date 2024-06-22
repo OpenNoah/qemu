@@ -30,6 +30,7 @@
 #include "hw/qdev-properties-system.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
@@ -63,18 +64,15 @@ static uint64_t ingenic_uart_read(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
-    qemu_log("%s @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_uart_read(addr, data);
     return data;
 }
 
 static void ingenic_uart_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned int size)
 {
-    qemu_log("%s @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
     IngenicUartState *s = INGENIC_UART(opaque);
-
+    trace_ingenic_uart_write(addr, data);
     switch (addr) {
     case 0x00:
         s->isr = data & 0x1f;
@@ -106,8 +104,6 @@ IngenicUartState *ingenic_uart_init(MemoryRegion *address_space,
                                     qemu_irq irq, int baudbase,
                                     Chardev *chr, enum device_endian end)
 {
-    qemu_log("%s enter\n", __func__);
-
     IngenicUartState *s = INGENIC_UART(qdev_new(TYPE_INGENIC_UART));
     SerialMM *smm = SERIAL_MM(s);
 
@@ -128,8 +124,6 @@ IngenicUartState *ingenic_uart_init(MemoryRegion *address_space,
 
 static void ingenic_uart_realize(DeviceState *dev, Error **errp)
 {
-    qemu_log("%s enter\n", __func__);
-
     Object *obj = OBJECT(dev);
     IngenicUartState *s = INGENIC_UART(dev);
     IngenicUartClass *sc = INGENIC_UART_GET_CLASS(dev);
