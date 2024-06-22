@@ -51,7 +51,6 @@ static void intc_update(IngenicIntc *s)
 
 static void ingenic_intc_reset(Object *obj, ResetType type)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicIntc *s = INGENIC_INTC(obj);
     // Initial values
     s->icsr = 0;
@@ -88,10 +87,14 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
     IngenicIntc *s = INGENIC_INTC(opaque);
     switch (addr) {
     case 0x08:
+        if (~s->icmr & data)
+            trace_ingenic_intc_enable(s->icmr);
         s->icmr |= data;
         intc_update(s);
         break;
     case 0x0c:
+        if (s->icmr & data)
+            trace_ingenic_intc_enable(s->icmr);
         s->icmr &= ~data;
         intc_update(s);
         break;
@@ -103,7 +106,6 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
                       __func__, addr, data);
         qmp_stop(NULL);
     }
-    //qemu_log("%s: Enabled: 0x%"PRIx32"\n", __func__, ~s->icmr & ~0x0e);
 }
 
 static void intc_irq(void *opaque, int n, int level)
