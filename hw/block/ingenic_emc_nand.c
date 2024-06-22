@@ -97,6 +97,8 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     }
 
     // TODO Non-bus shared address
+    addr %= 0x00100000;
+
     if (addr >= 0x0c0000) {
         // Reserved
         qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND write reserved address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
@@ -173,10 +175,7 @@ static MemoryRegionOps nand_io_ops = {
 
 static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
 {
-    qemu_log("%s enter\n", __func__);
-
     IngenicEmcNand *s = INGENIC_EMC_NAND(dev);
-
     if (!s->blk) {
         error_setg(errp, "drive property not set");
         return;
@@ -229,8 +228,6 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
 
 static void ingenic_emc_nand_unrealize(DeviceState *dev)
 {
-    qemu_log("%s: enter\n", __func__);
-
     // Deregister with EMC
     IngenicEmcNand *s = INGENIC_EMC_NAND(dev);
     s->emc->nand[s->cs - 1] = NULL;
@@ -239,17 +236,12 @@ static void ingenic_emc_nand_unrealize(DeviceState *dev)
 
 static void ingenic_emc_nand_init(Object *obj)
 {
-    qemu_log("%s: enter\n", __func__);
-
     IngenicEmcNand *s = INGENIC_EMC_NAND(obj);
-
-    // NAND IO region
-    memory_region_init_io(&s->mr, obj, &nand_io_ops, s, "emc.nand.io", 0x00100000);
+    memory_region_init_io(&s->mr, obj, &nand_io_ops, s, "emc.nand.io", 0x02000000);
 }
 
 static void ingenic_emc_nand_finalize(Object *obj)
 {
-    qemu_log("%s: enter\n", __func__);
 }
 
 static Property ingenic_emc_nand_properties[] = {
