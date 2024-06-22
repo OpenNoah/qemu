@@ -28,6 +28,9 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#define INGENIC_DMAC_NUM_DMAC   2
+#define INGENIC_DMAC_NUM_CH     4
+
 #define TYPE_INGENIC_DMAC "ingenic-dmac"
 OBJECT_DECLARE_TYPE(IngenicDmac, IngenicDmacClass, INGENIC_DMAC)
 
@@ -41,21 +44,21 @@ typedef struct IngenicDmac
 
     // Registers
     struct {
-        uint32_t dsa;   // Source address
-        uint32_t dta;   // Target address
-        uint32_t dtc;   // Transfer count
-        uint32_t drt;   // Request source
-        uint32_t dcs;   // Control & status
-        uint32_t dcm;   // Command
-        uint32_t dda;   // Descriptor address
-        uint32_t dsd;   // Stride address
-    } ch[8];
-    struct {
+        struct {
+            uint32_t dsa;   // Source address
+            uint32_t dta;   // Target address
+            uint32_t dtc;   // Transfer count
+            uint8_t  drt;   // Request source
+            uint32_t dcs;   // Control & status
+            uint32_t dcm;   // Command
+            uint32_t dda;   // Descriptor address
+            uint32_t dsd;   // Stride address
+        } ch[INGENIC_DMAC_NUM_CH];
         uint32_t dmac;  // Control
         uint32_t dirqp; // Interrupt pending
         uint8_t  ddr;   // Doorbell
         uint8_t  dcke;  // Clock enable
-    } ctrl[2];
+    } ctrl[INGENIC_DMAC_NUM_DMAC];
 } IngenicDmac;
 
 typedef struct IngenicDmacClass
