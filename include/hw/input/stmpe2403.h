@@ -20,9 +20,35 @@
 #ifndef HW_INPUT_STMPE2403_H
 #define HW_INPUT_STMPE2403_H
 
-#define TYPE_STMPE2403 "stmpe2403"
+#include "qom/object.h"
+#include "hw/sysbus.h"
+#include "hw/i2c/i2c.h"
 
 // STMPE2403 I2C device address can be 0x42, 0x43, 0x44, 0x45
 #define STMPE2403_DEFAULT_I2C_ADDR 0x42
+
+#define TYPE_STMPE2403 "stmpe2403"
+OBJECT_DECLARE_TYPE(Stmpe2403, Stmpe2403Class, STMPE2403)
+
+typedef struct Stmpe2403
+{
+    I2CSlave parent_obj;
+
+    uint8_t i2c_start;
+    uint8_t reg_addr;
+
+    // Registers
+    struct {
+        uint16_t aicfr;
+        uint32_t aiccr;
+        uint16_t i2scr;
+        uint8_t  i2sdiv;
+    } reg;
+} Stmpe2403;
+
+typedef struct Stmpe2403Class
+{
+    I2CSlaveClass parent_class;
+} Stmpe2403Class;
 
 #endif // HW_INPUT_STMPE2403_H
