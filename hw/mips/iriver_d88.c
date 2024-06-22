@@ -46,6 +46,7 @@
 #include "hw/mips/ingenic_jz4755.h"
 
 #include "hw/audio/ar1010.h"
+#include "hw/audio/wm8731.h"
 #include "hw/input/stmpe2403.h"
 
 typedef struct ResetData {
@@ -110,6 +111,7 @@ static void mips_iriver_d88_init(MachineState *machine)
 
     // Other chips on I2C bus
     i2c_slave_create_simple(soc->i2c, TYPE_AR1010, AR1010_I2C_ADDR);
+    i2c_slave_create_simple(soc->i2c, TYPE_WM8731, 0x1b);
     i2c_slave_create_simple(soc->i2c, TYPE_STMPE2403, STMPE2403_DEFAULT_I2C_ADDR);
 
     // Connect GPIOs
