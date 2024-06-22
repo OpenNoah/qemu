@@ -30,12 +30,25 @@
 #include "qom/object.h"
 #include "trace.h"
 
+#define GPMR_MSB    0xa2
+#define GPMR_CSB    0xa3
+#define GPMR_LSB    0xa4
+
 void qmp_stop(Error **errp);
 
 static uint8_t stmpe2403_read(Stmpe2403 *s, uint8_t reg)
 {
     uint8_t value = 0;
-    qmp_stop(NULL);
+    switch (reg) {
+    case GPMR_MSB:
+    case GPMR_CSB:
+    case GPMR_LSB:
+        value = 0xff;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: TODO reg=0x%02x\n", __func__, reg);
+        qmp_stop(NULL);
+    }
     trace_stmpe2403_reg_read(reg, value);
     return value;
 }
@@ -57,6 +70,7 @@ static uint8_t stmpe2403_i2c_rx(I2CSlave *i2c)
 {
     Stmpe2403 *s = STMPE2403(i2c);
     uint8_t value = stmpe2403_read(s, s->reg_addr);
+    s->reg_addr++;
     trace_stmpe2403_i2c_event("RX", value);
     return value;
 }
@@ -70,6 +84,7 @@ static int stmpe2403_i2c_tx(I2CSlave *i2c, uint8_t data)
         s->i2c_start = 0;
     } else {
         stmpe2403_write(s, s->reg_addr, data);
+        s->reg_addr++;
     }
     return 0;
 }
