@@ -56,9 +56,13 @@ config VIRTIO_SND
     default y
     depends on VIRTIO
 
+config INGENIC_AIC
+    bool
+
 config AR1010
     bool
     depends on I2C
 
-config INGENIC_AIC
+config WM8731
     bool
+    depends on I2C
