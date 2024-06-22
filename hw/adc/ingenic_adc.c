@@ -34,7 +34,6 @@ void qmp_stop(Error **errp);
 
 static void ingenic_adc_reset(Object *obj, ResetType type)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicAdc *s = INGENIC_ADC(obj);
     // Initial values
     s->adena = 0;
@@ -91,7 +90,6 @@ static uint64_t ingenic_adc_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
     trace_ingenic_adc_read(addr, data);
     return data;
 }
@@ -161,7 +159,6 @@ static MemoryRegionOps adc_ops = {
 
 static void ingenic_adc_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicAdc *s = INGENIC_ADC(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &adc_ops, s, "adc", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
