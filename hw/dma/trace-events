@@ -47,3 +47,7 @@ pl330_iomem_read(uint32_t addr, uint32_t data) "addr: 0x%08"PRIx32" data: 0x%08"
 
 # xilinx_axidma.c
 xilinx_axidma_loading_desc_fail(uint32_t res) "error:%u"
+
+# ingenic_dmac.c
+ingenic_dmac_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_dmac_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
