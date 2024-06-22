@@ -150,3 +150,7 @@ config XLNX_USB_SUBSYS
 config USB_CHIPIDEA
     bool
     select USB_EHCI_SYSBUS
+
+config INGENIC_UDC
+    bool
+    select USB_MUSB
