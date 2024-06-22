@@ -25,32 +25,52 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "ui/console.h"
 #include "qom/object.h"
 #include "trace.h"
 
-typedef struct STMPE2403State {
-    I2CSlave parent_obj;
-} STMPE2403State;
-
 void qmp_stop(Error **errp);
+
+static uint8_t stmpe2403_read(Stmpe2403 *s, uint8_t reg)
+{
+    uint8_t value = 0;
+    qmp_stop(NULL);
+    trace_stmpe2403_reg_read(reg, value);
+    return value;
+}
+
+static void stmpe2403_write(Stmpe2403 *s, uint8_t reg, uint8_t value)
+{
+    trace_stmpe2403_reg_write(reg, value);
+}
 
 static int stmpe2403_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
+    Stmpe2403 *s = STMPE2403(i2c);
     trace_stmpe2403_i2c_event("EVENT", event);
+    s->i2c_start = event == I2C_START_SEND;
     return 0;
 }
 
 static uint8_t stmpe2403_i2c_rx(I2CSlave *i2c)
 {
-    uint8_t data = 0;
-    trace_stmpe2403_i2c_event("RX", data);
-    return data;
+    Stmpe2403 *s = STMPE2403(i2c);
+    uint8_t value = stmpe2403_read(s, s->reg_addr);
+    trace_stmpe2403_i2c_event("RX", value);
+    return value;
 }
 
 static int stmpe2403_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
+    Stmpe2403 *s = STMPE2403(i2c);
     trace_stmpe2403_i2c_event("TX", data);
+    if (s->i2c_start) {
+        s->reg_addr = data;
+        s->i2c_start = 0;
+    } else {
+        stmpe2403_write(s, s->reg_addr, data);
+    }
     return 0;
 }
 
@@ -59,6 +79,14 @@ static void stmpe2403_reset(DeviceState *dev)
 }
 
 static void stmpe2403_realize(DeviceState *dev, Error **errp)
+{
+}
+
+static void stmpe2403_init(Object *obj)
+{
+}
+
+static void stmpe2403_finalize(Object *obj)
 {
 }
 
@@ -75,16 +103,4 @@ static void stmpe2403_class_init(ObjectClass *klass, void *data)
     //dc->vmsd = &vmstate_lm_kbd;
 }
 
-static const TypeInfo stmpe2403_info = {
-    .name          = TYPE_STMPE2403,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(STMPE2403State),
-    .class_init    = stmpe2403_class_init,
-};
-
-static void stmpe2403_register_types(void)
-{
-    type_register_static(&stmpe2403_info);
-}
-
-type_init(stmpe2403_register_types)
+OBJECT_DEFINE_TYPE(Stmpe2403, stmpe2403, STMPE2403, I2C_SLAVE)

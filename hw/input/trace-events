@@ -58,4 +58,6 @@ lasips2_reg_write(unsigned int size, int id, uint64_t addr, const char *name, ui
 lasips2_intr(unsigned int val) "%d"
 
 # stmpe2403.c
+stmpe2403_reg_write(uint8_t reg, uint8_t value) "*0x%02x = 0x%02x"
+stmpe2403_reg_read(uint8_t reg, uint8_t value) "*0x%02x = 0x%02x"
 stmpe2403_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
