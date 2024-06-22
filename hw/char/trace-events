@@ -113,3 +113,7 @@ xen_console_unrealize(unsigned int idx) "idx %u"
 xen_console_realize(unsigned int idx, const char *chrdev) "idx %u chrdev %s"
 xen_console_device_create(unsigned int idx) "idx %u"
 xen_console_device_destroy(unsigned int idx) "idx %u"
+
+# ingenic_uart.c
+ingenic_uart_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_uart_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
