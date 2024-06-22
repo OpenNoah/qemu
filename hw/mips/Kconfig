@@ -39,6 +39,7 @@ config INGENIC_JZ4755
     select INGENIC_I2C
     select INGENIC_MSC
     select INGENIC_AIC
+    select INGENIC_UDC
 
 config JAZZ
     bool
