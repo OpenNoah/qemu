@@ -139,6 +139,9 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     case REG_CLKGR:
         data = cgu->reg.clkgr;
         break;
+    case REG_OPCR:
+        data = cgu->reg.opcr;
+        break;
     case REG_I2SCDR:
         data = cgu->reg.i2scdr;
         break;
@@ -187,6 +190,9 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_CLKGR:
         cgu->reg.clkgr = data & 0x01ffffff;
+        break;
+    case REG_OPCR:
+        cgu->reg.opcr = data & 0xff74;
         break;
     case REG_I2SCDR:
         cgu->reg.i2scdr = data & 0x01ff;
