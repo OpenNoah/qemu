@@ -151,6 +151,9 @@ static void ingenic_i2c_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                     trace_ingenic_i2c_event("NAK", 1);
                     s->sr |= BIT(0);
                     s->state = IngenicI2cNak;
+                    qemu_log_mask(LOG_GUEST_ERROR, "%s: I2C NAK from 0x%02x\n",
+                                  __func__, s->dr >> 1);
+                    qmp_stop(NULL);
                 } else {
                     // Start returned ACK
                     trace_ingenic_i2c_event("ACK", 0);
