@@ -117,7 +117,7 @@ static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
         case REG_DMAC:
             data = s->ctrl[dmac].dmac;
             break;
-        //case REG_DIRQP:
+        // TODO case REG_DIRQP:
         case REG_DDR:
             data = s->ctrl[dmac].ddr;
             break;
@@ -133,50 +133,83 @@ static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_dmac_read(addr, data);
     return data;
 }
 
 static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
     IngenicDmac *s = INGENIC_DMAC(opaque);
-    uint32_t idx = 0;
+    trace_ingenic_dmac_write(addr, data);
+    uint32_t dmac = (addr / 0x0100) % INGENIC_DMAC_NUM_DMAC;
+    uint32_t ch = addr % 0x0100;
+    ch = ch >= 0xc0 ? (ch - 0xc0) / INGENIC_DMAC_NUM_CH : ch / 0x20;
     switch (addr) {
     case 0x0000 ... 0x02ff:
-        idx = (addr / 0x0100) * 4;
-        if ((addr & 0xff) >= 0xc0)
-            idx += ((addr & 0xff) - 0xc0) / 4;
-        else
-            idx += (addr & 0xff) / 0x20;
-
-        if (idx >= 8) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel %"PRIu32"\n", __func__, idx);
+        if (ch >= INGENIC_DMAC_NUM_CH) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel %u.%u\n", __func__, dmac, ch);
             qmp_stop(NULL);
         } else {
             switch (addr & 0x9f) {
-            case 0x14:
-                s->ch[idx].dcm = data & 0xf2cff73f;
+            case REG_CH_DSA:
+                s->ctrl[dmac].ch[ch].dsa = data;
+                break;
+            case REG_CH_DTA:
+                s->ctrl[dmac].ch[ch].dta = data;
+                break;
+            case REG_CH_DTC:
+                s->ctrl[dmac].ch[ch].dtc = data & 0x00ffffff;
+                break;
+            case REG_CH_DRT:
+                s->ctrl[dmac].ch[ch].drt = data & 0x3f;
+                break;
+            case REG_CH_DCS:
+                s->ctrl[dmac].ch[ch].dcs = data & 0xc0ff00df;
+                if ((data & 1) && (s->ctrl[dmac].dmac & 1)) {
+                    // Start DMA transfer
+                    qemu_log_mask(LOG_UNIMP, "%s: TODO %u.%u START\n", __func__, dmac, ch);
+                    qmp_stop(NULL);
+                }
+                break;
+            case REG_CH_DCM:
+                s->ctrl[dmac].ch[ch].dcm = data & 0xf2cff73f;
+                break;
+            case REG_CH_DDA:
+                s->ctrl[dmac].ch[ch].dda = data & 0xfffffff0;
+                break;
+            case REG_CH_DSD & 0x9f:
+                s->ctrl[dmac].ch[ch].dsd = data;
                 break;
             default:
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CH address " HWADDR_FMT_plx "\n", __func__, addr);
                 qmp_stop(NULL);
             }
         }
         break;
     case 0x0300 ... 0x04ff:
-        idx = (addr - 0x0300) / 0x0100;
         switch (addr & 0xff) {
-        case 0x00:
-            s->ctrl[idx].dmac = data & 0xf800030d;
+        case REG_DMAC:
+            s->ctrl[dmac].dmac = data & 0xf800030d;
+            if (data & 1) {
+                for (int ch = 0; ch < INGENIC_DMAC_NUM_CH; ch++) {
+                    if (s->ctrl[dmac].ch[ch].dcs & 1) {
+                        // Start DMA transfer
+                        qemu_log_mask(LOG_UNIMP, "%s: TODO %u.%u START\n", __func__, dmac, ch);
+                        qmp_stop(NULL);
+                    }
+                }
+            }
             break;
-        case 0x10:
-            s->ctrl[idx].dcke = data & 0x0f;
+#if 0   // TODO
+        case REG_DDRS:
+            s->ctrl[dmac].ddr |= data & 0x0f;
+            break;
+#endif
+        case REG_DCKE:
+            s->ctrl[dmac].dcke = data & 0x0f;
             break;
         default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown DMAC address " HWADDR_FMT_plx "\n", __func__, addr);
             qmp_stop(NULL);
         }
         break;
