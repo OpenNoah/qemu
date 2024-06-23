@@ -20,17 +20,34 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "trace.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "migration/vmstate.h"
+#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
-#include "migration/vmstate.h"
-#include "exec/address-spaces.h"
-
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_bch.h"
+#include "trace.h"
+
+#define REG_BHCR    0x00
+#define REG_BHCSR   0x04
+#define REG_BHCCR   0x08
+#define REG_BHCNT   0x0c
+#define REG_BHDR    0x10
+#define REG_BHPAR0  0x14
+#define REG_BHPAR1  0x18
+#define REG_BHPAR2  0x1c
+#define REG_BHPAR3  0x20
+#define REG_BHINT   0x24
+#define REG_BHERR0  0x28
+#define REG_BHERR1  0x2c
+#define REG_BHERR2  0x30
+#define REG_BHERR3  0x34
+#define REG_BHINTE  0x38
+#define REG_BHINTES 0x3c
+#define REG_BHINTEC 0x40
 
 void qmp_stop(Error **errp);
 
@@ -51,17 +68,21 @@ static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
     IngenicBch *s = opaque;
     uint64_t data = 0;
     switch (addr) {
-    case 0x00:
+    case REG_BHCR:
         data = s->bhcr;
         break;
-    case 0x0c:
+    case REG_BHCNT:
         data = s->bhcnt;
         break;
-    case 0x24:
+    case REG_BHINT:
         //qemu_log("BCH read int 0x%"PRIx32" 0x%"PRIx32"\n", s->bhcnt, s->nbytes);
         data = s->bhint;
         break;
-    case 0x38:
+    case REG_BHERR0 ... REG_BHERR3:
+        // TODO
+        data = 0;
+        break;
+    case REG_BHINTE:
         data = s->bhinte;
         break;
     default:
@@ -69,18 +90,19 @@ static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
         break;
     }
-
-    //qemu_log("BCH read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    trace_ingenic_bch_read(addr, data);
     return data;
 }
 
 static void ingenic_bch_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    //qemu_log("BCH write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
-
     IngenicBch *s = opaque;
+    if (addr == REG_BHDR)
+        trace_ingenic_bch_write_data(addr, data);
+    else
+        trace_ingenic_bch_write(addr, data);
     switch (addr) {
-    case 0x04:
+    case REG_BHCSR:
         s->bhcr |= data & 0x1d;
         if (data & BIT(1)) {
             // Reset
@@ -90,13 +112,13 @@ static void ingenic_bch_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             s->bhint    = 0;
         }
         break;
-    case 0x08:
+    case REG_BHCCR:
         s->bhcr &= ~data & 0x1f;
         break;
-    case 0x0c:
+    case REG_BHCNT:
         s->bhcnt = data & 0x03ff03ff;
         break;
-    case 0x10:
+    case REG_BHDR:
         // Data register
         // Only update interrupts, ECC algorithm isn't implemented yet
         s->mask_and &= data;
@@ -116,17 +138,22 @@ static void ingenic_bch_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                 s->bhint |= BIT(3);     // Decoding finished
         }
         break;
-    case 0x24:
+    case REG_BHINT:
         s->bhint &= ~data & 0x3f;
         break;
-    case 0x3c:
+    case REG_BHINTES:
         s->bhinte |= data & 0x3f;
+        if (data) {
+            qemu_log_mask(LOG_UNIMP, "%s: TODO: Interrupts 0x%"PRIx64"\n", __func__, data);
+            qmp_stop(NULL);
+        }
         break;
-    case 0x40:
+    case REG_BHINTEC:
         s->bhinte &= ~data & 0x3f;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "BHC write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
+            __func__, addr, data);
         qmp_stop(NULL);
         break;
     }
@@ -140,17 +167,14 @@ static MemoryRegionOps bch_ops = {
 
 static void ingenic_bch_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicBch *bch = INGENIC_BCH(obj);
-
     memory_region_init_io(&bch->mr, OBJECT(bch), &bch_ops, bch, "bch", 0x100);
     sysbus_init_mmio(sbd, &bch->mr);
 }
 
 static void ingenic_bch_finalize(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
 }
 
 static void ingenic_bch_class_init(ObjectClass *class, void *data)
