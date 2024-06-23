@@ -25,17 +25,19 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
+#include "sysemu/sysemu.h"
+
 #include "hw/qdev-clock.h"
 #include "hw/mips/mips.h"
-#include "hw/char/serial.h"
-#include "sysemu/sysemu.h"
-#include "hw/boards.h"
 #include "hw/mips/bios.h"
+#include "hw/char/serial.h"
+#include "hw/boards.h"
+#include "hw/core/split-irq.h"
 #include "hw/loader.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
-#include "qemu/log.h"
 
 #include "hw/mips/ingenic_jz4755.h"
 #include "hw/misc/ingenic_cgu.h"
@@ -222,10 +224,17 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
     cpu_mips_irq_init_cpu(cpu);
     cpu_mips_clock_init(cpu);
 
+    // IO splitters
+    // NAND RB from EMC
+    DeviceState *nand_rb_splitter = qdev_new(TYPE_SPLIT_IRQ);
+    qdev_prop_set_uint32(nand_rb_splitter, "num-lines", 2);
+    qdev_realize_and_unref(nand_rb_splitter, NULL, &error_fatal);
+    qdev_connect_gpio_out_named(DEVICE(emc), "nand-rb", 0, qdev_get_gpio_in(nand_rb_splitter, 0));
+
     // Connect GPIOs
     // PC27: NAND RB
-    qemu_irq nand_rb = qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "in", 27);
-    qdev_connect_gpio_out_named(DEVICE(emc), "nand-rb", 0, nand_rb);
+    qdev_connect_gpio_out(nand_rb_splitter, 0,
+        qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "in", 27));
 
     // Connect interrupts
     const struct {
@@ -234,6 +243,8 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         uint32_t dev_irq;
         uint32_t intc_irq;
     } irqs[] = {
+        {DEVICE(dmac), "irq-out", 0, 29},
+        {DEVICE(dmac), "irq-out", 1, 28},
         {DEVICE(tcu), "irq-tcu0", 0, 23},
         {DEVICE(tcu), "irq-tcu1", 0, 22},
         {DEVICE(tcu), "irq-tcu2", 0, 21},
@@ -246,6 +257,10 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
                                     irqs[i].dev_irq_name, irqs[i].dev_irq, irq);
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
+
+    // Connect DMA requests
+    qdev_connect_gpio_out(nand_rb_splitter, 1,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
 
     return soc;
 }
