@@ -43,10 +43,10 @@ void qmp_stop(Error **errp);
 
 static void nand_read_page(IngenicEmcNand *nand)
 {
-    uint32_t row = nand->addr >> 16;
+    uint64_t row = nand->addr >> 16;
     nand->page_ofs = nand->addr % (nand->page_size * 2);
-    if (blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
-                  nand->page_size + nand->oob_size, nand->page_buf, 0) < 0) {
+    if (unlikely(blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
+                           nand->page_size + nand->oob_size, nand->page_buf, 0) < 0)) {
         printf("%s: read error at address 0x%"PRIx64"\n", __func__, nand->addr);
         qmp_stop(NULL);
         return;
@@ -59,24 +59,22 @@ static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t bank = nand->cs;
     uint64_t data = 0;
 
-    if (!nand) {
-        qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND %"PRIu32" no media\n", bank);
+    if (unlikely(!nand)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %"PRIu32" no media\n", __func__, bank);
         qmp_stop(NULL);
         return 0;
     }
 
     for (int i = 0; i < size; i++) {
         data |= (uint64_t)nand->page_buf[nand->page_ofs] << (8 * i);
-        if (nand->page_ofs >= nand->page_size + nand->oob_size) {
+        if (unlikely(nand->page_ofs >= nand->page_size + nand->oob_size)) {
             qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND %"PRIu32" read beyond page+oob size\n", bank);
             qmp_stop(NULL);
         } else {
             nand->page_ofs++;
         }
     }
-
-    //qemu_log("EMC NAND %"PRIu32" read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
-    //         bank + 1, addr, (uint32_t)size, data);
+    trace_ingenic_nand_read(addr, data);
     return data;
 }
 
@@ -85,18 +83,15 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     IngenicEmcNand *nand = INGENIC_EMC_NAND(opaque);
     uint32_t bank = nand->cs;
     IngenicEmc *emc = nand->emc;
-
-    //qemu_log("EMC NAND %"PRIu32" write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%08"PRIx64"\n",
-    //         bank + 1, addr, (uint32_t)size, data);
-
-    if (!nand) {
-        qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND %"PRIu32" no media\n", bank);
+    trace_ingenic_nand_write(addr, data);
+    if (unlikely(!nand)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %"PRIu32" no media\n", __func__, bank);
         qmp_stop(NULL);
         return;
     }
 
     // TODO Non-bus shared address
-    if (emc->BCR & BIT(2)) {
+    if (unlikely(emc->BCR & BIT(2))) {
         qemu_log_mask(LOG_UNIMP, "%s: TODO Non-bus shared\n", __func__);
         qmp_stop(NULL);
     }
