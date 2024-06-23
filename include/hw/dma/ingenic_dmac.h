@@ -25,8 +25,8 @@
 #ifndef INGENIC_DMAC_H
 #define INGENIC_DMAC_H
 
-#include "hw/sysbus.h"
 #include "qom/object.h"
+#include "hw/sysbus.h"
 
 #define INGENIC_DMAC_NUM_DMAC   2
 #define INGENIC_DMAC_NUM_CH     4
@@ -34,13 +34,22 @@
 #define TYPE_INGENIC_DMAC "ingenic-dmac"
 OBJECT_DECLARE_TYPE(IngenicDmac, IngenicDmacClass, INGENIC_DMAC)
 
+enum ingenic_dmac_ch_state {
+    IngenicDmacChIdle, IngenicDmacChDesc, IngenicDmacChTxfr,
+};
+
 typedef struct IngenicDmac
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
+    QEMUBH *trigger_bh;
+    qemu_irq irq[INGENIC_DMAC_NUM_DMAC];
+
+    struct {
+        struct {
+            enum ingenic_dmac_ch_state state;
+        } ch[INGENIC_DMAC_NUM_CH];
+    } dma[INGENIC_DMAC_NUM_DMAC];
 
     // Registers
     struct {
@@ -58,7 +67,7 @@ typedef struct IngenicDmac
         uint32_t dirqp; // Interrupt pending
         uint8_t  ddr;   // Doorbell
         uint8_t  dcke;  // Clock enable
-    } ctrl[INGENIC_DMAC_NUM_DMAC];
+    } reg[INGENIC_DMAC_NUM_DMAC];
 } IngenicDmac;
 
 typedef struct IngenicDmacClass
