@@ -20,20 +20,18 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "trace.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
-#include "trace.h"
-
+#include "hw/sysbus.h"
+#include "hw/irq.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
+#include "trace.h"
 
 #define CMD_READ        0x00
 #define CMD_READ_2      0x30
@@ -69,7 +67,7 @@ static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
 
     for (int i = 0; i < size; i++) {
         data |= (uint64_t)nand->page_buf[nand->page_ofs] << (8 * i);
-        if (nand->page_ofs == nand->page_size + nand->oob_size) {
+        if (nand->page_ofs >= nand->page_size + nand->oob_size) {
             qemu_log_mask(LOG_GUEST_ERROR, "EMC NAND %"PRIu32" read beyond page+oob size\n", bank);
             qmp_stop(NULL);
         } else {
@@ -98,6 +96,10 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
     }
 
     // TODO Non-bus shared address
+    if (emc->BCR & BIT(2)) {
+        qemu_log_mask(LOG_UNIMP, "%s: TODO Non-bus shared\n", __func__);
+        qmp_stop(NULL);
+    }
     addr %= 0x00100000;
 
     if (addr >= 0x0c0000) {
@@ -122,7 +124,7 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand->page_ofs = data;  // Maybe? expects data should be 0
             break;
         default:
-            qemu_log("%s: Unknown command %"PRIu8"\n", __func__, nand->prev_cmd);
+            qemu_log_mask(LOG_UNIMP, "%s: Unknown command %"PRIu8"\n", __func__, nand->prev_cmd);
             qmp_stop(NULL);
         }
 
@@ -160,14 +162,14 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
                 nand->page_buf[i] = nand->nand_id >> (8 * i);
             break;
         default:
-            qemu_log("%s: Unknown command 0x%"PRIx8"\n", __func__, cmd);
+            qemu_log_mask(LOG_UNIMP, "%s: Unknown command 0x%"PRIx8"\n", __func__, cmd);
             qmp_stop(NULL);
         }
         nand->prev_cmd = cmd;
 
     } else {
         // Data space
-        qemu_log("%s: Writing not implemented yet\n", __func__);
+        qemu_log_mask(LOG_UNIMP, "%s: Writing not implemented yet\n", __func__);
         qmp_stop(NULL);
     }
 }
@@ -206,7 +208,7 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
     }
     s->nand_id = 0;
     const char *c = s->nand_id_str;
-    qemu_log("EMC NAND ID:");
+    //qemu_log("EMC NAND ID:");
     for (int i = 0; i < 8 && *c != 0; i++) {
         uint8_t b = 0;
         for (int ib = 0; ib < 2; ib++) {
@@ -223,10 +225,10 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
             }
             b = (b << 4) | v;
         }
-        qemu_log(" %02x", b);
+        //qemu_log(" %02x", b);
         s->nand_id |= (uint64_t)b << (8 * i);
     }
-    qemu_log("\n");
+    //qemu_log("\n");
 
     s->page_buf = g_new(uint8_t, s->page_size + s->oob_size);
 }
