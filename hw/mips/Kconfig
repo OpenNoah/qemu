@@ -19,6 +19,7 @@ config IRIVER_D88
 
 config INGENIC_JZ4755
     bool
+    select SPLIT_IRQ
     select INGENIC_CGU
     select INGENIC_EMC
     select INGENIC_BCH
