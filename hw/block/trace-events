@@ -108,3 +108,8 @@ ingenic_emc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 
 # ingenic_emc_nand.c
 ingenic_nand_cmd(uint32_t bank, const char *cmd, uint32_t value) "bank%u %s: 0x%08x"
+
+# ingenic_bch.c
+ingenic_bch_write_data(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_bch_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_bch_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
