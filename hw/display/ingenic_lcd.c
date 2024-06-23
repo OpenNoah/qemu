@@ -142,12 +142,13 @@ static void ingenic_lcd_update_display(void *opaque)
         uint32_t idesc = 0;
         uint32_t da = s->desc[idesc].lcdda;
         uint32_t desc[8];
-        cpu_physical_memory_read(da, &desc[0], sizeof(desc));
+        uint32_t nwords = s->lcdcfg & BIT(28) ? 8 : 4;
+        cpu_physical_memory_read(da, &desc[0], 4 * nwords);
         s->desc[idesc].lcdda  = desc[0];
         s->desc[idesc].lcdsa  = desc[1];
         s->desc[idesc].lcdfid = desc[2];
         s->desc[idesc].lcdcmd = desc[3];
-        if (s->lcdcfg & BIT(28)) {
+        if (nwords == 8) {
             s->desc[idesc].lcdoffs    = desc[4];
             s->desc[idesc].lcdpw      = desc[5];
             s->desc[idesc].lcdcnum    = desc[6];
