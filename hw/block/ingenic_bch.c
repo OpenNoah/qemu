@@ -54,13 +54,16 @@ void qmp_stop(Error **errp);
 static void ingenic_bch_reset(Object *obj, ResetType type)
 {
     IngenicBch *s = INGENIC_BCH(obj);
+    s->nbytes = 0;
 
-    // Initial values
     s->bhcr = 0;
     s->bhcnt = 0;
     s->bhint = 0;
     s->bhinte = 0;
-    s->nbytes = 0;
+    for (int i = 0; i < 4; i++) {
+        s->bhpar[i] = 0;
+        s->bherr[i] = 0;
+    }
 }
 
 static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
@@ -75,18 +78,19 @@ static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
         data = s->bhcnt;
         break;
     case REG_BHINT:
-        //qemu_log("BCH read int 0x%"PRIx32" 0x%"PRIx32"\n", s->bhcnt, s->nbytes);
         data = s->bhint;
-        break;
-    case REG_BHERR0 ... REG_BHERR3:
-        // TODO
-        data = 0;
         break;
     case REG_BHINTE:
         data = s->bhinte;
         break;
+    case REG_BHPAR0 ... REG_BHPAR3:
+        data = 0xdeadbeef; //s->bhpar[(addr - REG_BHPAR0) / 4];
+        break;
+    case REG_BHERR0 ... REG_BHERR3:
+        data = s->bherr[(addr - REG_BHPAR0) / 4];
+        break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "BCH read unknown address " HWADDR_FMT_plx "\n", addr);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
         break;
     }
@@ -110,6 +114,10 @@ static void ingenic_bch_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             s->mask_and = 0xff;
             s->mask_or  = 0;
             s->bhint    = 0;
+            for (int i = 0; i < 4; i++) {
+                s->bhpar[i] = 0;
+                s->bherr[i] = 0;
+            }
         }
         break;
     case REG_BHCCR:
@@ -150,6 +158,10 @@ static void ingenic_bch_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_BHINTEC:
         s->bhinte &= ~data & 0x3f;
+        break;
+    case REG_BHPAR0 ... REG_BHPAR3:
+        s->bhpar[(addr - REG_BHPAR0) / 4] = data;
+        s->bhpar[3] &= 0x00ffffff;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
