@@ -25,19 +25,38 @@
 #ifndef INGENIC_ADC_H
 #define INGENIC_ADC_H
 
+#include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_ADC "ingenic-adc"
 OBJECT_DECLARE_TYPE(IngenicAdc, IngenicAdcClass, INGENIC_ADC)
 
+enum ingenic_adc_sampler {
+    IngenicAdcSamplerIdle,
+    IngenicAdcSamplerIn,
+    IngenicAdcSamplerBat,
+    //IngenicAdcSamplerTsX,
+    //IngenicAdcSamplerTsY,
+    //IngenicAdcSamplerTsZ1,
+    //IngenicAdcSamplerTsZ2,
+};
+
 typedef struct IngenicAdc
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
+    qemu_irq irq;
+
+    QEMUTimer sampler_timer;
+    QEMUTimer ts_timer;
+
+    enum ingenic_adc_sampler sampler;
+    uint8_t adtch_state;
+    uint16_t x, y, z[4];
+    uint32_t adtch_fifo;
+    uint8_t prev_state;
+    bool pressed;
 
     // Registers
     uint8_t adena;
@@ -46,7 +65,6 @@ typedef struct IngenicAdc
     uint8_t adstate;
     uint16_t adsame;
     uint16_t adwait;
-    uint32_t adtch[2];
     uint16_t adbdat;
     uint16_t adsdat;
     uint16_t adflt;
