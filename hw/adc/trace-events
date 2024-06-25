@@ -10,3 +10,6 @@ aspeed_adc_engine_write(uint32_t engine_id, uint64_t addr, uint64_t value) "engi
 # ingenic_adc.c
 ingenic_adc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_adc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_adc_ts(int pressed, int x, int y, int z0, int z1, int z2, int z3) "pressed=%u x=%u y=%u z0=%u z1=%u z2=%u z3=%u"
+ingenic_adc_irq(int irq, uint32_t state) "%u 0x%x"
+ingenic_adc_sampler(int state) "%u"
