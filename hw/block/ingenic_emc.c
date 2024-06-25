@@ -142,11 +142,19 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case 0x34:
     case 0x38:
     case 0x3c:
-    case 0x40:
+    case 0x40: {
         bank = (addr - 0x34) / 4;
         emc->SACR[bank] = data & 0x0000ffff;
-        // TODO Update memory region
+        // Update memory region
+        MemoryRegion *mr = emc->nand[bank] ? &emc->nand[bank]->mr : &emc->static_null_mr[bank];
+        memory_region_set_address(mr, (data & 0xff00) << 16);
+        memory_region_set_size(mr, ((~data & 0xff) + 1) << 24);
+        if ((data & 0xff) != 0xfc) {
+            qemu_log_mask(LOG_UNIMP, "%s: Unsupported mask 0x%"PRIx64"\n", __func__, data);
+            qmp_stop(NULL);
+        }
         break;
+    }
     case 0x50:
         diff = (emc->NFCSR ^ data) & 0x55;
         emc->NFCSR = data & 0xff;
