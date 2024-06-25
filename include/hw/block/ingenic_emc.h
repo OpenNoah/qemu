@@ -82,9 +82,10 @@ typedef struct IngenicEmcNand {
     uint32_t page_size;
     uint32_t oob_size;
     uint32_t cs;
+    bool writable;
     // States
     uint8_t prev_cmd;
-    uint8_t fail;
+    uint8_t status;
     uint32_t addr_ofs;
     uint64_t addr;
     // Read/write buffers
