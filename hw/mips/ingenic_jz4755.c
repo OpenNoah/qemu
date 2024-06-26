@@ -243,12 +243,18 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         uint32_t dev_irq;
         uint32_t intc_irq;
     } irqs[] = {
+        {DEVICE(lcd),  "irq-out",  0, 31},
+        // 30 IPU
         {DEVICE(dmac), "irq-out",  0, 29},
         {DEVICE(dmac), "irq-out",  1, 28},
+        // 24 MSC1
         {DEVICE(tcu),  "irq-tcu0", 0, 23},
         {DEVICE(tcu),  "irq-tcu1", 0, 22},
         {DEVICE(tcu),  "irq-tcu2", 0, 21},
         {DEVICE(adc),  "irq-out",  0, 18},
+        // 12 GPIO4
+        // 8 UART1
+        // 6 RTC
         {0}
     };
     for (int i = 0; irqs[i].dev != NULL; i++) {
