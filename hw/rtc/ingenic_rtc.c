@@ -23,19 +23,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
+#include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "migration/vmstate.h"
+#include "hw/sysbus.h"
 #include "hw/rtc/ingenic_rtc.h"
+#include "trace.h"
 
 void qmp_stop(Error **errp);
 
 static void ingenic_rtc_reset(Object *obj, ResetType type)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicRtc *s = INGENIC_RTC(obj);
-    // Initial values
     s->rtccr = 0x81;
 }
 
@@ -49,6 +49,7 @@ static uint64_t ingenic_rtc_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 0x04:
         data = s->rtcsr;
+        data = get_clock_realtime() / 1000000000;
         break;
     case 0x08:
         data = s->rtcsar;
@@ -78,16 +79,14 @@ static uint64_t ingenic_rtc_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_rtc_read(addr, data);
     return data;
 }
 
 static void ingenic_rtc_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
     IngenicRtc *s = INGENIC_RTC(opaque);
+    trace_ingenic_rtc_write(addr, data);
     switch (addr) {
     case 0x00:
         s->rtccr = (data & 0x2f) | BIT(7);
@@ -129,7 +128,6 @@ static MemoryRegionOps rtc_ops = {
 
 static void ingenic_rtc_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
     IngenicRtc *s = INGENIC_RTC(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &rtc_ops, s, "rtc", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
