@@ -39,3 +39,7 @@ goldfish_rtc_write(uint64_t addr, uint64_t value) "addr 0x%02" PRIx64 " value 0x
 # rs5c372.c
 rs5c372_recv(uint32_t addr, uint8_t value) "[0x%" PRIx32 "] -> 0x%02" PRIx8
 rs5c372_send(uint32_t addr, uint8_t value) "[0x%" PRIx32 "] <- 0x%02" PRIx8
+
+# ingenic_rtc.c
+ingenic_rtc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_rtc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
