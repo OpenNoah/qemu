@@ -34,13 +34,11 @@ OBJECT_DECLARE_TYPE(IngenicLcd, IngenicLcdClass, INGENIC_LCD)
 
 typedef struct IngenicLcd
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
     MemoryRegionSection fbsection;
     QemuConsole *con;
+    qemu_irq irq;
 
     // Variables
     uint32_t xres;
@@ -57,6 +55,7 @@ typedef struct IngenicLcd
     uint32_t lcddah;
     uint32_t lcddav;
     uint32_t lcdctrl;
+    uint8_t  lcdstate;
     uint16_t lcdrgbc;
     uint16_t lcdosdctrl;
     uint32_t lcdbgc;

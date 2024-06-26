@@ -36,7 +36,57 @@
 #include "hw/display/ingenic_lcd.h"
 #include "trace.h"
 
+#define REG_LCDCFG      0x0000
+#define REG_LCDVSYNC    0x0004
+#define REG_LCDHSYNC    0x0008
+#define REG_LCDVAT      0x000C
+#define REG_LCDDAH      0x0010
+#define REG_LCDDAV      0x0014
+#define REG_LCDPS       0x0018
+#define REG_LCDCLS      0x001C
+#define REG_LCDSPL      0x0020
+#define REG_LCDREV      0x0024
+#define REG_LCDCTRL     0x0030
+#define REG_LCDSTATE    0x0034
+#define REG_LCDIID      0x0038
+#define REG_LCDDA0      0x0040
+#define REG_LCDSA0      0x0044
+#define REG_LCDFID0     0x0048
+#define REG_LCDCMD0     0x004C
+#define REG_LCDDA1      0x0050
+#define REG_LCDSA1      0x0054
+#define REG_LCDFID1     0x0058
+#define REG_LCDCMD1     0x005C
+#define REG_LCDOFFS0    0x0060
+#define REG_LCDPW0      0x0064
+#define REG_LCDCNUM0    0x0068
+#define REG_LCDDESSIZE0 0x006C
+#define REG_LCDOFFS1    0x0070
+#define REG_LCDPW1      0x0074
+#define REG_LCDCNUM1    0x0078
+#define REG_LCDDESSIZE1 0x007C
+#define REG_LCDRGBC     0x0090
+#define REG_LCDOSDC     0x0100
+#define REG_LCDOSDCTRL  0x0104
+#define REG_LCDOSDS     0x0108
+#define REG_LCDBGC      0x010C
+#define REG_LCDKEY0     0x0110
+#define REG_LCDKEY1     0x0114
+#define REG_LCDALPHA    0x0118
+#define REG_LCDIPUR     0x011C
+#define REG_LCDXYP0     0x0120
+#define REG_LCDXYP1     0x0124
+#define REG_LCDSIZE0    0x0128
+#define REG_LCDSIZE1    0x012C
+
 void qmp_stop(Error **errp);
+
+static void ingenic_lcd_update_irq(IngenicLcd *s)
+{
+    bool irq = !!(s->lcdstate & (s->lcdctrl >> 8) & 0x3f);
+    irq |= !!(s->lcdstate & s->lcdctrl & BIT(7));
+    qemu_set_irq(s->irq, irq);
+}
 
 static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
                      int width, int deststep)
@@ -193,6 +243,8 @@ static void ingenic_lcd_update_display(void *opaque)
         dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
 
     s->invalidate = false;
+    s->lcdstate |= BIT(4) | BIT(5);     // Frame start & end flags
+    ingenic_lcd_update_irq(s);
 }
 
 static void ingenic_lcd_invalidate_display(void * opaque)
@@ -258,7 +310,7 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
         s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
         qemu_console_resize(s->con, s->xres, s->yres);
     } else {
-        qemu_log_mask(LOG_UNIMP, "%s: TODO %u\n", __func__, __LINE__);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Re-enabling console\n", __func__);
         qmp_stop(NULL);
     }
 }
@@ -275,130 +327,141 @@ static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
     IngenicLcd *s = INGENIC_LCD(opaque);
     uint64_t data = 0;
     switch (addr) {
-    case 0x0000:
+    case REG_LCDCFG:
         data = s->lcdcfg;
         break;
-    case 0x0004:
+    case REG_LCDVSYNC:
         data = s->lcdvsync;
         break;
-    case 0x0008:
+    case REG_LCDHSYNC:
         data = s->lcdhsync;
         break;
-    case 0x000c:
+    case REG_LCDVAT:
         data = s->lcdvat;
         break;
-    case 0x0010:
+    case REG_LCDDAH:
         data = s->lcddah;
         break;
-    case 0x0014:
+    case REG_LCDDAV:
         data = s->lcddav;
         break;
-    case 0x0030:
+    case REG_LCDCTRL:
         data = s->lcdctrl;
         break;
-    case 0x0040:
+    case REG_LCDSTATE:
+        data = s->lcdstate;
+        break;
+    case REG_LCDDA0:
         data = s->desc[0].lcdda;
         break;
-    case 0x0050:
+    case REG_LCDDA1:
         data = s->desc[1].lcdda;
         break;
-    case 0x0090:
+    case REG_LCDRGBC:
         data = s->lcdrgbc;
         break;
-    case 0x0104:
+    case REG_LCDOSDCTRL:
         data = s->lcdosdctrl;
         break;
-    case 0x010c:
+    case REG_LCDBGC:
         data = s->lcdbgc;
         break;
-    case 0x0110:
+    case REG_LCDKEY0:
         data = s->fg[0].lcdkey;
         break;
-    case 0x0114:
+    case REG_LCDKEY1:
         data = s->fg[1].lcdkey;
         break;
-    case 0x0118:
+    case REG_LCDALPHA:
         data = s->lcdalpha;
         break;
-    case 0x011c:
+    case REG_LCDIPUR:
         data = s->lcdipur;
         break;
-    case 0x0128:
+    case REG_LCDSIZE0:
         data = s->fg[0].lcdsize;
         break;
-    case 0x012c:
+    case REG_LCDSIZE1:
         data = s->fg[1].lcdsize;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
     trace_ingenic_lcd_read(addr, data);
     return data;
 }
 
 static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    trace_ingenic_lcd_write(addr, data);
     IngenicLcd *s = INGENIC_LCD(opaque);
-    uint32_t diff = data;
+    trace_ingenic_lcd_write(addr, data);
     switch (addr) {
-    case 0x0000:
+    case REG_LCDCFG:
         s->lcdcfg = data;
         break;
-    case 0x0004:
+    case REG_LCDVSYNC:
         s->lcdvsync = data & 0x0fff0fff;
         break;
-    case 0x0008:
+    case REG_LCDHSYNC:
         s->lcdhsync = data & 0x0fff0fff;
         break;
-    case 0x000c:
+    case REG_LCDVAT:
         s->lcdvat = data & 0x0fff0fff;
         break;
-    case 0x0010:
+    case REG_LCDDAH:
         s->lcddah = data & 0x0fff0fff;
         break;
-    case 0x0014:
+    case REG_LCDDAV:
         s->lcddav = data & 0x0fff0fff;
         break;
-    case 0x0030:
-        diff ^= s->lcdctrl;
+    case REG_LCDCTRL: {
+        bool en = (s->lcdctrl & BIT(3)) && ~(s->lcdctrl & BIT(4));
+        bool en_next = (data & BIT(3)) && ~(data & BIT(4));
         s->lcdctrl = data & 0x3fffffff;
-        if (diff & BIT(3))
-            ingenic_lcd_enable(s, s->lcdctrl & BIT(3));
+        if (en_next != en) {
+            ingenic_lcd_enable(s, en_next);
+            if (!(data & BIT(3)))
+                s->lcdstate |= BIT(7);              // Quick disabled
+            else if (data & BIT(4))
+                s->lcdstate |= BIT(0);              // Normal disabled
+            else
+                s->lcdstate &= ~(BIT(7) | BIT(0));  // Enabled
+        }
+        ingenic_lcd_update_irq(s);
         break;
-    case 0x0040:
+    }
+    case REG_LCDDA0:
         s->desc[0].lcdda = data;
         break;
-    case 0x0050:
+    case REG_LCDDA1:
         s->desc[1].lcdda = data;
         break;
-    case 0x0090:
+    case REG_LCDRGBC:
         s->lcdrgbc = data & 0xc177;
         break;
-    case 0x0104:
+    case REG_LCDOSDCTRL:
         s->lcdosdctrl = data & 0x801f;
         break;
-    case 0x010c:
+    case REG_LCDBGC:
         s->lcdbgc = data & 0x00ffffff;
         break;
-    case 0x0110:
+    case REG_LCDKEY0:
         s->fg[0].lcdkey = data & 0xc0ffffff;
         break;
-    case 0x0114:
+    case REG_LCDKEY1:
         s->fg[1].lcdkey = data & 0xc0ffffff;
         break;
-    case 0x0118:
+    case REG_LCDALPHA:
         s->lcdalpha = data & 0xff;
         break;
-    case 0x011c:
+    case REG_LCDIPUR:
         s->lcdipur = data & 0x80ffffff;
         break;
-    case 0x0128:
+    case REG_LCDSIZE0:
         s->fg[0].lcdsize = data & 0x0fff0fff;
         break;
-    case 0x012c:
+    case REG_LCDSIZE1:
         s->fg[1].lcdsize = data & 0x0fff0fff;
         break;
     default:
@@ -417,8 +480,9 @@ static MemoryRegionOps lcd_ops = {
 static void ingenic_lcd_init(Object *obj)
 {
     IngenicLcd *s = INGENIC_LCD(obj);
-    memory_region_init_io(&s->mr, OBJECT(s), &lcd_ops, s, "lcd", 0x10000);
+    memory_region_init_io(&s->mr, obj, &lcd_ops, s, "lcd", 0x10000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq, "irq-out", 1);
 }
 
 static void ingenic_lcd_finalize(Object *obj)
