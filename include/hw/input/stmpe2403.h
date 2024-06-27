@@ -33,16 +33,40 @@ OBJECT_DECLARE_TYPE(Stmpe2403, Stmpe2403Class, STMPE2403)
 typedef struct Stmpe2403
 {
     I2CSlave parent_obj;
+    qemu_irq irq_out;
+    qemu_irq gpio_out[24];
 
     uint8_t i2c_start;
     uint8_t reg_addr;
 
+    uint32_t gpio_out_level;
+    bool prev_irq_out;
+
     // Registers
     struct {
-        uint16_t aicfr;
-        uint32_t aiccr;
-        uint16_t i2scr;
-        uint8_t  i2sdiv;
+        // System controller
+        uint8_t syscon;
+        uint8_t syscon2;
+        // Interrupt system
+        uint8_t icr;
+        uint16_t ier;
+        uint16_t isr;
+        uint32_t iegpior;
+        uint32_t isgpior;
+        // Keypad controller
+        uint8_t kpc_col;
+        uint16_t kpc_row;
+        uint16_t kpc_ctrl;
+        // GPIO controller
+        uint32_t gpin;              // Input state
+        uint32_t gpout;             // Output state
+        uint32_t gpdr;              // Direction, 0: in, 1: out
+        uint32_t gpedr;             // Edge detected
+        uint32_t gprer;             // Rising edge detect enable
+        uint32_t gpfer;             // Falling edge detect enable
+        uint32_t gppur;             // Pull-up enable
+        uint32_t gppdr;             // Pull-down enable
+        uint32_t gpafr_u, gpafr_l;  // Alternative function
     } reg;
 } Stmpe2403;
 
