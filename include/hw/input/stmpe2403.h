@@ -36,11 +36,13 @@ typedef struct Stmpe2403
     qemu_irq irq_out;
     qemu_irq gpio_out[24];
 
-    uint8_t i2c_start;
-    uint8_t reg_addr;
-
+    uint32_t force_gpio_mask;
+    uint32_t force_gpio_value;
     uint32_t gpio_out_level;
     bool prev_irq_out;
+
+    uint8_t i2c_start;
+    uint8_t reg_addr;
 
     // Registers
     struct {
@@ -67,6 +69,8 @@ typedef struct Stmpe2403
         uint32_t gppur;             // Pull-up enable
         uint32_t gppdr;             // Pull-down enable
         uint32_t gpafr_u, gpafr_l;  // Alternative function
+        uint8_t mcr;
+        uint8_t compat2401;
     } reg;
 } Stmpe2403;
 
