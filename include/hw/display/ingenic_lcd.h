@@ -57,12 +57,14 @@ typedef struct IngenicLcd
     uint32_t lcdctrl;
     uint8_t  lcdstate;
     uint16_t lcdrgbc;
+    uint16_t lcdosdc;
     uint16_t lcdosdctrl;
     uint32_t lcdbgc;
     uint8_t  lcdalpha;
     uint32_t lcdipur;
     struct {
         uint32_t lcdkey;
+        uint32_t lcdxyp;
         uint32_t lcdsize;
     } fg[2];
     struct {
