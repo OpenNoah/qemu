@@ -50,3 +50,6 @@ config LASIPS2
 config STMPE2403
     bool
     depends on I2C
+
+config D88_MATRIX_KEYPAD
+    bool

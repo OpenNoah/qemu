@@ -8,6 +8,7 @@ system_ss.add(when: 'CONFIG_PS2', if_true: files('ps2.c'))
 system_ss.add(when: 'CONFIG_STELLARIS_GAMEPAD', if_true: files('stellaris_gamepad.c'))
 system_ss.add(when: 'CONFIG_TSC2005', if_true: files('tsc2005.c'))
 system_ss.add(when: 'CONFIG_STMPE2403', if_true: files('stmpe2403.c'))
+system_ss.add(when: 'CONFIG_D88_MATRIX_KEYPAD', if_true: files('d88_matrix_keypad.c'))
 
 system_ss.add(when: 'CONFIG_VIRTIO_INPUT', if_true: files('virtio-input.c'))
 system_ss.add(when: 'CONFIG_VIRTIO_INPUT', if_true: files('virtio-input-hid.c'))
