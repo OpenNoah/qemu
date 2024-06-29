@@ -28,6 +28,7 @@
 #define JZ4755_H
 
 #include "qemu/typedefs.h"
+#include "target/mips/cpu.h"
 #include "hw/gpio/ingenic_gpio.h"
 #include "hw/i2c/i2c.h"
 
