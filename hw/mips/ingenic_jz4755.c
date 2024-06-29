@@ -31,7 +31,6 @@
 
 #include "hw/qdev-clock.h"
 #include "hw/mips/mips.h"
-#include "hw/mips/bios.h"
 #include "hw/char/serial.h"
 #include "hw/boards.h"
 #include "hw/core/split-irq.h"
