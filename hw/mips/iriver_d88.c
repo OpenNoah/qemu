@@ -34,7 +34,6 @@
 #include "hw/char/serial.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/mips/bios.h"
 #include "hw/loader.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
@@ -100,8 +99,7 @@ static void mips_iriver_d88_init(MachineState *machine)
     } else {
         bootrom_size = -1;
     }
-    if ((bootrom_size < 0 || bootrom_size > BIOS_SIZE) &&
-        machine->firmware && !qtest_enabled()) {
+    if (bootrom_size < 0 && machine->firmware && !qtest_enabled()) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         error_report("Could not load MIPS bios '%s'", machine->firmware);
         exit(1);
