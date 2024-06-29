@@ -64,3 +64,11 @@ stmpe2403_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
 stmpe2403_gpio(uint32_t dir, uint32_t pin, uint32_t edge, uint32_t re, uint32_t fe, uint32_t pup, uint32_t pdn, uint64_t afr) "dir=0x%06x pin=0x%06x edge=0x%06x re=0x%06x fe=0x%06x pup=0x%06x pdn=0x%06x afr=0x%012"PRIx64
 stmpe2403_gpio_in(int n, int level) "%d level=%d"
 stmpe2403_irq(int level, uint32_t pin) "%d pin=0x%06x"
+
+# d88_matrix_keypad.c
+d88_matrix_keypad_row_in(int n, int level) "n=%d level=%d"
+d88_matrix_keypad_col_in(int n, int level) "n=%d level=%d"
+d88_matrix_keypad_row_out(int n, int level) "n=%d level=%d"
+d88_matrix_keypad_col_out(int n, int level) "n=%d level=%d"
+d88_matrix_keypad_event(int down, int qcode, int row, int col) "down=%d qcode=%d row=%d col=%d"
+d88_matrix_keypad_state(uint32_t rw, uint32_t rwv, uint32_t rsv, uint32_t cw, uint32_t cwv, uint32_t csv) "row(weak=0x%08x wv=0x%08x sv=0x%08x) col(weak=0x%08x wv=0x%08x sv=0x%08x)"
