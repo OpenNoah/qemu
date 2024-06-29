@@ -99,6 +99,7 @@ static void ingenic_adc_ts_timer(void *opaque)
 static void ingenic_adc_ts_event(void *opaque, int x, int y, int z, int buttons_state)
 {
     IngenicAdc *s = INGENIC_ADC(opaque);
+    qemu_set_irq(s->debug_irq, !!(buttons_state & 2));
     if (!(s->adena & BIT(2)))
         return;     // Touchscreen disabled
 
@@ -330,6 +331,7 @@ static void ingenic_adc_init(Object *obj)
     memory_region_init_io(&s->mr, OBJECT(s), &adc_ops, s, "adc", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
     qdev_init_gpio_out_named(dev, &s->irq, "irq-out", 1);
+    qdev_init_gpio_out_named(dev, &s->debug_irq, "debug-out", 1);
     timer_init_ns(&s->sampler_timer, QEMU_CLOCK_VIRTUAL, &ingenic_adc_sampler_timer, s);
     timer_init_ns(&s->ts_timer, QEMU_CLOCK_VIRTUAL, &ingenic_adc_ts_timer, s);
 

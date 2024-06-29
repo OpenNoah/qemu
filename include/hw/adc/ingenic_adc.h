@@ -47,6 +47,7 @@ typedef struct IngenicAdc
     SysBusDevice parent_obj;
     MemoryRegion mr;
     qemu_irq irq;
+    qemu_irq debug_irq;
 
     QEMUTimer sampler_timer;
     QEMUTimer ts_timer;
