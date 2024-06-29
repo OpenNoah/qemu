@@ -32,14 +32,17 @@ typedef struct IngenicGpioIrqData {
 } IngenicGpioIrqData;
 
 typedef struct IngenicGpio {
-    /*< private >*/
     SysBusDevice parent_obj;
-
-    /*< public >*/
     MemoryRegion mr;
+    qemu_irq irq_out;
+    qemu_irq output[32];
+
     char *name;
     uint32_t pull;
     uint32_t reset;
+    uint32_t pending_raise;
+    uint32_t pending_fall;
+    int prev_irq_level;
 
     // Registers
     uint32_t pin;
@@ -51,11 +54,6 @@ typedef struct IngenicGpio {
     uint32_t dir;
     uint32_t trg;
     uint32_t flg;
-
-    // IRQs
-    qemu_irq output[32];
-    uint32_t pending_raise;
-    uint32_t pending_fall;
 } IngenicGpio;
 
 typedef struct IngenicGpioClass
