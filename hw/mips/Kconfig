@@ -22,6 +22,7 @@ config IRIVER_D88
     select AR1010
     select WM8731
     select STMPE2403
+    select D88_MATRIX_KEYPAD
 
 config INGENIC_JZ4755
     bool
