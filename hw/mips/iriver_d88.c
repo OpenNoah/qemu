@@ -48,6 +48,7 @@
 #include "hw/audio/ar1010.h"
 #include "hw/audio/wm8731.h"
 #include "hw/input/stmpe2403.h"
+#include "hw/input/d88_matrix_keypad.h"
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -112,18 +113,80 @@ static void mips_iriver_d88_init(MachineState *machine)
     // Other chips on I2C bus
     i2c_slave_create_simple(soc->i2c, TYPE_AR1010, AR1010_I2C_ADDR);
     i2c_slave_create_simple(soc->i2c, TYPE_WM8731, 0x1b);
-    i2c_slave_create_simple(soc->i2c, TYPE_STMPE2403, STMPE2403_DEFAULT_I2C_ADDR);
+
+    // STMPE2403 Keypad/GPIO controller
+    I2CSlave *stmpe2403 = i2c_slave_new(TYPE_STMPE2403, STMPE2403_DEFAULT_I2C_ADDR);
+    // P15 & P23 used as I2C ADDR, connected to GND
+    object_property_set_uint(OBJECT(stmpe2403), "force-gpio-mask", BIT(15) | BIT(23), &error_fatal);
+    object_property_set_uint(OBJECT(stmpe2403), "force-gpio-value", 0, &error_fatal);
+    i2c_slave_realize_and_unref(stmpe2403, soc->i2c, &error_abort);
+
+    // Keypad matrix
+    D88MatrixKeypad *kp = D88_MATRIX_KEYPAD(qdev_new(TYPE_D88_MATRIX_KEYPAD));
+    object_property_set_uint(OBJECT(kp), "num-rows", 5, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "num-cols", 13, &error_fatal);
+    qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
+
+    // Keypad IO connections
+    const struct {
+        bool row;
+        uint32_t kp_io;
+        uint32_t stmpe_io;
+    } kp_ios[] = {
+        { true,  0,  4},
+        { true,  1, 12},
+        { true,  2, 13},
+        { true,  3, 14},
+        { true,  4, 16},
+        {false,  0,  0},
+        {false,  1,  1},
+        {false,  2,  2},
+        {false,  3,  3},
+        {false,  4,  7},
+        {false,  5,  8},
+        {false,  6,  9},
+        {false,  7, 10},
+        {false,  8, 11},
+        {false,  9, 17},
+        {false, 10, 18},
+        {false, 11, 19},
+        {false, 12, 20},
+    };
+    for (int i = 0; i < ARRAY_SIZE(kp_ios); i++) {
+        const char *name = kp_ios[i].row ? "row-in" : "col-in";
+        qemu_irq irq = qdev_get_gpio_in_named(DEVICE(kp), name, kp_ios[i].kp_io);
+        qdev_connect_gpio_out_named(DEVICE(stmpe2403), "gpio-out", kp_ios[i].stmpe_io, irq);
+        name = kp_ios[i].row ? "row-out" : "col-out";
+        irq = qdev_get_gpio_in_named(DEVICE(stmpe2403), "gpio-in", kp_ios[i].stmpe_io);
+        qdev_connect_gpio_out_named(DEVICE(kp), name, kp_ios[i].kp_io, irq);
+    }
+
+    // Floating signals
+    static const uint8_t floating[] = {5, 6, 21, 22};
+    for (int i = 0; i < ARRAY_SIZE(floating); i++) {
+        qemu_irq irq = qdev_get_gpio_in_named(DEVICE(stmpe2403), "gpio-in", floating[i]);
+        qdev_connect_gpio_out_named(DEVICE(stmpe2403), "gpio-out", floating[i], irq);
+    }
 
     // Connect GPIOs
-    // PE0: Lid detect
+    // PE0: Lid detect, 0: closed
     qemu_irq lid_det = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 0);
-    qemu_irq_lower(lid_det);
-    // PE4: MSC1 CD, active low
+    qemu_irq_raise(lid_det);
+    // PE4: MSC1 CD, 0: inserted
     qemu_irq msc1_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 4);
     qemu_irq_raise(msc1_cd);
     // PE6: UDC CD, active high
     qemu_irq udc_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 6);
     qemu_irq_lower(udc_cd);
+    // PE9: Keyboard IRQ, falling edge active
+    qemu_irq stmpe2403_irq = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 9);
+    qdev_connect_gpio_out_named(DEVICE(stmpe2403), "irq-out", 0, stmpe2403_irq);
+    // PE10: Headphone, 0: inserted
+    qemu_irq hp_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 10);
+    qemu_irq_raise(hp_cd);
+    // PE30: POWER key, active low
+    qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30);
+    qemu_irq_raise(power_key);
 }
 
 static void mips_iriver_d88_machine_init(MachineClass *mc)
