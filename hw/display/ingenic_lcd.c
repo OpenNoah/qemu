@@ -109,16 +109,16 @@ static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
             b = (tmp << 3) & 0xf8;
             break;
         case 666:
-            src++;
-            r = *src++ & 0xfc;
-            g = *src++ & 0xfc;
             b = *src++ & 0xfc;
+            g = *src++ & 0xfc;
+            r = *src++ & 0xfc;
+            src++;
             break;
         case 888:
-            src++;
-            r = *src++;
-            g = *src++;
             b = *src++;
+            g = *src++;
+            r = *src++;
+            src++;
             break;
         }
 
@@ -354,11 +354,32 @@ static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
     case REG_LCDDA0:
         data = s->desc[0].lcdda;
         break;
+    case REG_LCDSA0:
+        data = s->desc[0].lcdsa;
+        break;
+    case REG_LCDFID0:
+        data = s->desc[0].lcdfid;
+        break;
+    case REG_LCDCMD0:
+        data = s->desc[0].lcdcmd;
+        break;
     case REG_LCDDA1:
         data = s->desc[1].lcdda;
         break;
+    case REG_LCDSA1:
+        data = s->desc[1].lcdsa;
+        break;
+    case REG_LCDFID1:
+        data = s->desc[1].lcdfid;
+        break;
+    case REG_LCDCMD1:
+        data = s->desc[1].lcdcmd;
+        break;
     case REG_LCDRGBC:
         data = s->lcdrgbc;
+        break;
+    case REG_LCDOSDC:
+        data = s->lcdosdc;
         break;
     case REG_LCDOSDCTRL:
         data = s->lcdosdctrl;
@@ -377,6 +398,12 @@ static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case REG_LCDIPUR:
         data = s->lcdipur;
+        break;
+    case REG_LCDXYP0:
+        data = s->fg[0].lcdxyp;
+        break;
+    case REG_LCDXYP1:
+        data = s->fg[1].lcdxyp;
         break;
     case REG_LCDSIZE0:
         data = s->fg[0].lcdsize;
@@ -431,6 +458,10 @@ static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         ingenic_lcd_update_irq(s);
         break;
     }
+    case REG_LCDSTATE:
+        s->lcdstate = data & 0xbf;
+        ingenic_lcd_update_irq(s);
+        break;
     case REG_LCDDA0:
         s->desc[0].lcdda = data;
         break;
@@ -439,6 +470,9 @@ static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_LCDRGBC:
         s->lcdrgbc = data & 0xc177;
+        break;
+    case REG_LCDOSDC:
+        s->lcdosdc = data & 0xcc1f;
         break;
     case REG_LCDOSDCTRL:
         s->lcdosdctrl = data & 0x801f;
@@ -457,6 +491,12 @@ static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_LCDIPUR:
         s->lcdipur = data & 0x80ffffff;
+        break;
+    case REG_LCDXYP0:
+        s->fg[0].lcdxyp = data & 0x0fff0fff;
+        break;
+    case REG_LCDXYP1:
+        s->fg[1].lcdxyp = data & 0x0fff0fff;
         break;
     case REG_LCDSIZE0:
         s->fg[0].lcdsize = data & 0x0fff0fff;
