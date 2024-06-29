@@ -264,9 +264,6 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
 
     if (!en) {
         // LCD controller disabled
-        if (s->con)
-            graphic_console_close(s->con);
-        s->con = 0;
         s->mode = 0;
         return;
     }
@@ -306,13 +303,7 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
         return;
     }
 
-    if (!s->con) {
-        s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
-        qemu_console_resize(s->con, s->xres, s->yres);
-    } else {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Re-enabling console\n", __func__);
-        qmp_stop(NULL);
-    }
+    qemu_console_resize(s->con, s->xres, s->yres);
 }
 
 static void ingenic_lcd_reset(Object *obj, ResetType type)
@@ -523,6 +514,8 @@ static void ingenic_lcd_init(Object *obj)
     memory_region_init_io(&s->mr, obj, &lcd_ops, s, "lcd", 0x10000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
     qdev_init_gpio_out_named(DEVICE(obj), &s->irq, "irq-out", 1);
+
+    s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
 }
 
 static void ingenic_lcd_finalize(Object *obj)
