@@ -25,9 +25,10 @@
 #ifndef INGENIC_LCD_H
 #define INGENIC_LCD_H
 
-#include "hw/sysbus.h"
 #include "qom/object.h"
 #include "ui/console.h"
+#include "qemu/timer.h"
+#include "hw/sysbus.h"
 
 #define TYPE_INGENIC_LCD "ingenic-lcd"
 OBJECT_DECLARE_TYPE(IngenicLcd, IngenicLcdClass, INGENIC_LCD)
@@ -38,6 +39,8 @@ typedef struct IngenicLcd
     MemoryRegion mr;
     MemoryRegionSection fbsection;
     QemuConsole *con;
+    QEMUTimer timer;
+    int64_t timer_ns;
     qemu_irq irq;
 
     // Variables
