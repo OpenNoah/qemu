@@ -36,6 +36,9 @@
 #include "hw/display/ingenic_lcd.h"
 #include "trace.h"
 
+#define FPS             (60)
+#define TIMER_UPDATE_NS ((1000 * 1000 * 1000) / FPS)
+
 #define REG_LCDCFG      0x0000
 #define REG_LCDVSYNC    0x0004
 #define REG_LCDHSYNC    0x0008
@@ -163,7 +166,7 @@ static void ingenic_lcd_update_display(void *opaque)
         src_width = s->xres * 4;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: bad source color depth\n", __func__);
+        //qemu_log_mask(LOG_GUEST_ERROR, "%s: bad source color depth\n", __func__);
         return;
     }
 
@@ -238,13 +241,9 @@ static void ingenic_lcd_update_display(void *opaque)
                                s->xres, s->yres,
                                src_width, dest_width, 0, s->invalidate,
                                &draw_row, s, &first, &last);
-
-    if (first >= 0)
-        dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
+    dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
 
     s->invalidate = false;
-    s->lcdstate |= BIT(4) | BIT(5);     // Frame start & end flags
-    ingenic_lcd_update_irq(s);
 }
 
 static void ingenic_lcd_invalidate_display(void * opaque)
@@ -257,6 +256,27 @@ static const GraphicHwOps fb_ops = {
     .invalidate = ingenic_lcd_invalidate_display,
     .gfx_update = ingenic_lcd_update_display,
 };
+
+static void ingenic_lcd_schedule(IngenicLcd *s)
+{
+    int64_t next = s->timer_ns + TIMER_UPDATE_NS;
+    s->timer_ns = next;
+    trace_ingenic_lcd_schedule(next);
+    timer_mod_anticipate_ns(&s->timer, next);
+
+    // Update frame start & end flags
+    s->lcdstate |= BIT(4) | BIT(5);
+    ingenic_lcd_update_irq(s);
+
+    graphic_hw_update(s->con);
+}
+
+static void ingenic_lcd_timer(void *opaque)
+{
+    IngenicLcd *s = INGENIC_LCD(opaque);
+    if (s->mode)
+        ingenic_lcd_schedule(s);
+}
 
 static void ingenic_lcd_enable(IngenicLcd *s, bool en)
 {
@@ -296,7 +316,6 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
     }
 
     trace_ingenic_lcd_mode(s->xres, s->yres, s->mode);
-
     if (!s->xres || !s->yres || !s->mode) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unsupported configuration\n", __func__);
         qmp_stop(NULL);
@@ -304,13 +323,18 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
     }
 
     qemu_console_resize(s->con, s->xres, s->yres);
+
+    // Restart frame tick timer
+    timer_del(&s->timer);
+    s->timer_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    ingenic_lcd_schedule(s);
 }
 
 static void ingenic_lcd_reset(Object *obj, ResetType type)
 {
     IngenicLcd *s = INGENIC_LCD(obj);
-    (void)s;
-    // TODO Initial values
+    timer_del(&s->timer);
+    s->mode = 0;
 }
 
 static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
@@ -515,11 +539,15 @@ static void ingenic_lcd_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
     qdev_init_gpio_out_named(DEVICE(obj), &s->irq, "irq-out", 1);
 
+    timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL, &ingenic_lcd_timer, s);
     s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
 }
 
 static void ingenic_lcd_finalize(Object *obj)
 {
+    IngenicLcd *s = INGENIC_LCD(obj);
+    timer_del(&s->timer);
+    s->mode = 0;
 }
 
 static void ingenic_lcd_class_init(ObjectClass *class, void *data)
