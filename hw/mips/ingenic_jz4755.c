@@ -234,7 +234,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
     // Connect GPIOs
     // PC27: NAND RB
     qdev_connect_gpio_out(nand_rb_splitter, 0,
-        qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "in", 27));
+        qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "gpio-in", 27));
 
     // Connect interrupts
     const struct {
@@ -252,7 +252,12 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         {DEVICE(tcu),  "irq-tcu1", 0, 22},
         {DEVICE(tcu),  "irq-tcu2", 0, 21},
         {DEVICE(adc),  "irq-out",  0, 18},
-        // 12 GPIO4
+        {DEVICE(gpio['A' - 'A']),  "irq-out",  0, 16},
+        {DEVICE(gpio['B' - 'A']),  "irq-out",  0, 15},
+        {DEVICE(gpio['C' - 'A']),  "irq-out",  0, 14},
+        {DEVICE(gpio['D' - 'A']),  "irq-out",  0, 13},
+        {DEVICE(gpio['E' - 'A']),  "irq-out",  0, 12},
+        {DEVICE(gpio['F' - 'A']),  "irq-out",  0, 11},
         // 8 UART1
         // 6 RTC
         {0}
