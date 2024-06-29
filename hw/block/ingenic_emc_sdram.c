@@ -44,7 +44,7 @@ static uint64_t ingenic_emc_sdram_read(void *opaque, hwaddr addr, unsigned size)
         return s->dmcr;
         break;
     case 0x04:
-        return s->rtcsr;
+        return s->rtcsr | BIT(7);
         break;
     case 0x08:
         return s->rtcnt;
