@@ -111,9 +111,7 @@ static void stmpe2403_reset(DeviceState *dev)
     s->reg.isr      = 0;
     s->reg.iegpior  = 0;
     s->reg.isgpior  = 0;
-    s->reg.gpin     = 0;
-    s->reg.gpout    = 0;
-    s->reg.gpin     = 0;
+    s->reg.gpin     = s->force_gpio_value;
     s->reg.gpout    = 0;
     s->reg.gpdr     = 0;
     s->reg.gpedr    = 0;
@@ -123,12 +121,15 @@ static void stmpe2403_reset(DeviceState *dev)
     s->reg.gppdr    = 0;
     s->reg.gpafr_u  = 0;
     s->reg.gpafr_l  = 0;
+    s->reg.mcr = 0;
+    s->reg.compat2401 = 0;
 }
 
 static void stmpe2403_update_irq(Stmpe2403 *s, uint32_t prev_dir, uint32_t prev_pin)
 {
     // Update input level of output GPIOs
     s->reg.gpin = (s->reg.gpin & ~s->reg.gpdr) | (s->reg.gpout & s->reg.gpdr);
+    s->reg.gpin = (s->reg.gpin & ~s->force_gpio_mask) | s->force_gpio_value;
     // Edge detection
     uint32_t change = prev_pin ^ s->reg.gpin;
     uint32_t edge_det = (change & s->reg.gprer &  s->reg.gpin) |
@@ -191,7 +192,7 @@ static void stmpe2403_gpio_irq(void *opaque, int n, int level)
     // Check for signal on an output pin
     if (mask & s->reg.gpdr) {
         // Check for conflicting strong signal on an output pin
-        if (mask & ~weak & s->reg.gpdr & (val ^ s->reg.gpout)) {
+        if (mask & ~weak & (val ^ s->reg.gpout)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Conflicting change PIN %d to %d\n",
                 __func__, n, level);
             //qmp_stop(NULL);
@@ -201,6 +202,7 @@ static void stmpe2403_gpio_irq(void *opaque, int n, int level)
     // Update pin level
     uint32_t pin = s->reg.gpin;
     s->reg.gpin = (s->reg.gpin & ~mask) | val;
+    s->reg.gpin = (s->reg.gpin & ~s->force_gpio_mask) | s->force_gpio_value;
     if (pin != s->reg.gpin)
         stmpe2403_update_irq(s, s->reg.gpdr, pin);
 }
@@ -242,6 +244,12 @@ static uint8_t stmpe2403_read(Stmpe2403 *s, uint8_t reg)
     case REG_KPC_CTRL_MSB:
     case REG_KPC_CTRL_LSB:
         value = stmpe2403_read_mb(REG_KPC_CTRL_LSB, reg, s->reg.kpc_ctrl);
+        break;
+    case REG_CHIP_ID:
+        value = 0x01;
+        break;
+    case REG_VERSION_ID:
+        value = 0x02;
         break;
     case REG_GPAFR_U_MSB:
     case REG_GPAFR_U_CSB:
@@ -367,6 +375,17 @@ static void stmpe2403_write(Stmpe2403 *s, uint8_t reg, uint8_t value)
     case REG_GPAFR_L_LSB:
         s->reg.gpafr_l = stmpe2403_write_mb(REG_GPAFR_L_LSB, reg, s->reg.gpafr_l, value);
         break;
+    case REG_MUX_CTRL:
+        s->reg.mcr = value & 0x0f;
+        break;
+    case REG_GPMR_MSB:
+    case REG_GPMR_CSB:
+    case REG_GPMR_LSB:
+        // Writes ignored
+        break;
+    case REG_COMPAT2401:
+        s->reg.compat2401 = value & 1;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: TODO reg=0x%02x\n", __func__, reg);
         qmp_stop(NULL);
@@ -422,11 +441,18 @@ static void stmpe2403_finalize(Object *obj)
 {
 }
 
+static Property stmpe2403_properties[] = {
+    DEFINE_PROP_UINT32("force-gpio-mask",  Stmpe2403, force_gpio_mask,  0),
+    DEFINE_PROP_UINT32("force-gpio-value", Stmpe2403, force_gpio_value, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void stmpe2403_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
+    device_class_set_props(dc, stmpe2403_properties);
     dc->reset = stmpe2403_reset;
     dc->realize = stmpe2403_realize;
     k->event = stmpe2403_i2c_event;
