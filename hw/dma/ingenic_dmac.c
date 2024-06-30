@@ -439,15 +439,24 @@ static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
     IngenicDmac *s = INGENIC_DMAC(opaque);
     uint64_t data = 0;
     uint32_t dmac = (addr / 0x0100) % INGENIC_DMAC_NUM_DMAC;
-    uint32_t ch = addr % 0x0100;
-    ch = ch >= 0xc0 ? (ch - 0xc0) / INGENIC_DMAC_NUM_CH : ch / 0x20;
+    uint32_t ch = (addr % 0x0100) / 0x20;
     switch (addr) {
     case 0x0000 ... 0x02ff:
         if (ch >= INGENIC_DMAC_NUM_CH) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel %u.%u\n", __func__, dmac, ch);
             qmp_stop(NULL);
+        } else if ((addr & 0xff) >= 0xc0) {
+            ch = (ch - 0xc0) / INGENIC_DMAC_NUM_CH;
+            switch (addr & 0xe0) {
+            case REG_CH_DSD & 0xe0:
+                data = s->reg[dmac].ch[ch].dsd;
+                break;
+            default:
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CH address " HWADDR_FMT_plx "\n", __func__, addr);
+                qmp_stop(NULL);
+            }
         } else {
-            switch (addr & 0x9f) {
+            switch (addr & 0x1f) {
             case REG_CH_DSA:
                 data = s->reg[dmac].ch[ch].dsa;
                 break;
@@ -468,9 +477,6 @@ static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
                 break;
             case REG_CH_DDA:
                 data = s->reg[dmac].ch[ch].dda;
-                break;
-            case REG_CH_DSD & 0x9f:
-                data = s->reg[dmac].ch[ch].dsd;
                 break;
             default:
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CH address " HWADDR_FMT_plx "\n", __func__, addr);
@@ -511,15 +517,24 @@ static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigne
     IngenicDmac *s = INGENIC_DMAC(opaque);
     trace_ingenic_dmac_write(addr, data);
     uint32_t dmac = (addr / 0x0100) % INGENIC_DMAC_NUM_DMAC;
-    uint32_t ch = addr % 0x0100;
-    ch = ch >= 0xc0 ? (ch - 0xc0) / INGENIC_DMAC_NUM_CH : ch / 0x20;
+    uint32_t ch = (addr % 0x0100) / 0x20;
     switch (addr) {
     case 0x0000 ... 0x02ff:
         if (ch >= INGENIC_DMAC_NUM_CH) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel %u.%u\n", __func__, dmac, ch);
             qmp_stop(NULL);
+        } else if ((addr & 0xff) >= 0xc0) {
+            ch = (ch - 0xc0) / INGENIC_DMAC_NUM_CH;
+            switch (addr & 0xe0) {
+            case REG_CH_DSD & 0xe0:
+                s->reg[dmac].ch[ch].dsd = data;
+                break;
+            default:
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CH address " HWADDR_FMT_plx "\n", __func__, addr);
+                qmp_stop(NULL);
+            }
         } else {
-            switch (addr & 0x9f) {
+            switch (addr & 0x1f) {
             case REG_CH_DSA:
                 s->reg[dmac].ch[ch].dsa = data;
                 break;
@@ -549,9 +564,6 @@ static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigne
                 break;
             case REG_CH_DDA:
                 s->reg[dmac].ch[ch].dda = data & 0xfffffff0;
-                break;
-            case REG_CH_DSD & 0x9f:
-                s->reg[dmac].ch[ch].dsd = data;
                 break;
             default:
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CH address " HWADDR_FMT_plx "\n", __func__, addr);
