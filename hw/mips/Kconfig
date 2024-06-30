@@ -54,7 +54,15 @@ config INGENIC_JZ4740
     select INGENIC_EMC
     select INGENIC_GPIO
     select INGENIC_UART
+    select INGENIC_ADC
+    select INGENIC_RTC
+    select INGENIC_TCU
+    select INGENIC_LCD
+    select INGENIC_DMAC
     select INGENIC_INTC
+    select INGENIC_I2C
+    select INGENIC_MSC
+    select INGENIC_UDC
 
 config JAZZ
     bool

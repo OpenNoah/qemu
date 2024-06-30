@@ -117,13 +117,13 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(udc), &error_fatal);
     MemoryRegion *udc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(udc), 0);
     memory_region_add_subregion(ahb0, 0x00040000, udc_mr);
+#endif
 
     // 0x13050000 Register LCD controller on AHB0
     IngenicLcd *lcd = INGENIC_LCD(qdev_new(TYPE_INGENIC_LCD));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(lcd), &error_fatal);
     MemoryRegion *lcd_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(lcd), 0);
-    memory_region_add_subregion(ahb0, 0x00050000, lcd_mr);
-#endif
+    memory_region_add_subregion(ahb, 0x00050000, lcd_mr);
 
     // Register APB IO space at 0x10000000
     memory_region_init(apb, NULL, "apb", 0x01000000);
@@ -139,7 +139,6 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     MemoryRegion *intc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(intc), 0);
     memory_region_add_subregion(apb, 0x00001000, intc_mr);
 
-#if 0
     // 0x1000204C Register TCU/OST/WDT on APB
     IngenicTcu *tcu = INGENIC_TCU(qdev_new(TYPE_INGENIC_TCU));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcu), &error_fatal);
@@ -151,7 +150,6 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(rtc), &error_fatal);
     MemoryRegion *rtc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(rtc), 0);
     memory_region_add_subregion(apb, 0x00003000, rtc_mr);
-#endif
 
     // 0x10010000 Register GPIOs on APB
     IngenicGpio *gpio[4];
@@ -206,13 +204,13 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     MemoryRegion *i2c_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(i2c), 0);
     memory_region_add_subregion(apb, 0x00042000, i2c_mr);
     soc->i2c = I2C_BUS(qdev_get_child_bus(DEVICE(i2c), "i2c"));
+#endif
 
     // 0x10070000 Register ADC on APB bus
     IngenicAdc *adc = INGENIC_ADC(qdev_new(TYPE_INGENIC_ADC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(adc), &error_fatal);
     MemoryRegion *adc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(adc), 0);
     memory_region_add_subregion(apb, 0x00070000, adc_mr);
-#endif
 
     /* Init CPU internal devices. */
     cpu_mips_irq_init_cpu(cpu);
