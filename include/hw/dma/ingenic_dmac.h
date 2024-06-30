@@ -29,7 +29,7 @@
 #include "hw/sysbus.h"
 
 #define INGENIC_DMAC_NUM_DMAC   2
-#define INGENIC_DMAC_NUM_CH     4
+#define INGENIC_DMAC_NUM_CH     6
 
 #define TYPE_INGENIC_DMAC "ingenic-dmac"
 OBJECT_DECLARE_TYPE(IngenicDmac, IngenicDmacClass, INGENIC_DMAC)
