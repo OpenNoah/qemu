@@ -7,3 +7,4 @@
 # Boards are selected by default, uncomment to keep out of the build.
 # CONFIG_MALTA=n
 # CONFIG_IRIVER_D88=n
+# CONFIG_NOAH_NP1380=n
