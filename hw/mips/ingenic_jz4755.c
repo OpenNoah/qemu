@@ -195,15 +195,18 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
     memory_region_add_subregion(apb, 0x00022000, msc1_mr);
 
     // 0x10030000 Register 16550 UART0 on APB
-    ingenic_uart_init(apb, 0x00030000, env->irq[4],
+    ingenic_uart_init(apb, 0x00030000,
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 9),
         115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     // 0x10031000 Register 16550 UART1 on APB
-    ingenic_uart_init(apb, 0x00031000, env->irq[5],
+    ingenic_uart_init(apb, 0x00031000,
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 8),
         115200, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 
     // 0x10032000 Register 16550 UART2 on APB
-    ingenic_uart_init(apb, 0x00032000, env->irq[6],
+    ingenic_uart_init(apb, 0x00032000,
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 7),
         115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
 
     // 0x10042000 Register I2C on APB
