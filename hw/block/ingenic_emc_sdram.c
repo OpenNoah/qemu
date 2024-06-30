@@ -62,16 +62,14 @@ static uint64_t ingenic_emc_sdram_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
+    trace_ingenic_sdram_read(addr, data);
     return data;
 }
 
 static void ingenic_emc_sdram_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
     IngenicEmcSdram *s = INGENIC_EMC_SDRAM(opaque);
+    trace_ingenic_sdram_write(addr, data);
     switch (addr) {
     case 0x00:
         s->dmcr = data & 0x9fbfff7f;
@@ -108,9 +106,8 @@ static MemoryRegionOps sdram_ops = {
 
 static void ingenic_emc_sdram_dmr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    qemu_log("%s: @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", __func__, addr, (uint32_t)size, data);
-
     IngenicEmcSdram *s = INGENIC_EMC_SDRAM(opaque);
+    trace_ingenic_sdram_dmr_write(addr, data);
     if (s->dmcr & BIT(23)) {
         // SDMR write, enable SDRAM banks
         uint32_t bank = (s->dmcr >> 16) & 1;
@@ -130,8 +127,6 @@ static MemoryRegionOps sdram_dmr_ops = {
 
 static void ingenic_emc_sdram_init(Object *obj)
 {
-    qemu_log("%s enter\n", __func__);
-
     IngenicEmcSdram *s = INGENIC_EMC_SDRAM(obj);
     MemoryRegion *sys_mem = get_system_memory();
 
@@ -141,7 +136,7 @@ static void ingenic_emc_sdram_init(Object *obj)
     memory_region_add_subregion(sys_mem, 0x00000000, &s->origin_alias_mr);
 
     // EMC registers
-    memory_region_init_io(&s->emc_mr, obj, &sdram_ops, s, "emc.sdram", 0x80);
+    memory_region_init_io(&s->emc_mr, obj, &sdram_ops, s, "emc.sdram", 0x20);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->emc_mr);
     memory_region_init_io(&s->dmr_mr, obj, &sdram_dmr_ops, s, "emc.sdram.dmr", 0x8000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->dmr_mr);
@@ -149,8 +144,6 @@ static void ingenic_emc_sdram_init(Object *obj)
 
 static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
 {
-    qemu_log("%s enter\n", __func__);
-
     Object *obj = OBJECT(dev);
     IngenicEmcSdram *s = INGENIC_EMC_SDRAM(obj);
     MemoryRegion *sys_mem = get_system_memory();
@@ -191,7 +184,6 @@ static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
 
 static void ingenic_emc_sdram_finalize(Object *obj)
 {
-    ;
 }
 
 static Property ingenic_emc_sdram_properties[] = {
