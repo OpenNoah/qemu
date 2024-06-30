@@ -29,10 +29,10 @@ OBJECT_DECLARE_TYPE(IngenicCgu, IngenicCguClass, INGENIC_CGU)
 
 typedef struct IngenicCgu {
     SysBusDevice parent_obj;
-
     MemoryRegion mr;
 
-    // Clocks
+    uint32_t model;
+
     uint32_t ext_freq;
     uint32_t rtc_freq;
     Clock *clk_ext;
@@ -43,7 +43,6 @@ typedef struct IngenicCgu {
     Clock *clk_pclk;
     Clock *clk_lcdpix;
 
-    // Registers
     struct {
         uint32_t cpccr;
         uint8_t  lcr;
@@ -52,9 +51,11 @@ typedef struct IngenicCgu {
         uint32_t cppsr;
         uint32_t clkgr;
         uint16_t opcr;
+        uint16_t scr;
         uint16_t i2scdr;
         uint32_t lpcdr;
         uint8_t  msccdr;
+        uint8_t  uhccdr;
         uint32_t ssicdr;
         uint32_t cimcdr;
     } reg;
