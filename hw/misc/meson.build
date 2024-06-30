@@ -163,7 +163,6 @@ specific_ss.add(when: 'CONFIG_RISCV_MIPS_CMGCR', if_true: files('riscv_cmgcr.c')
 specific_ss.add(when: 'CONFIG_RISCV_MIPS_CPC', if_true: files('riscv_cpc.c'))
 
 specific_ss.add(when: 'CONFIG_INGENIC_CGU', if_true: files('ingenic_cgu.c'))
-specific_ss.add(when: 'CONFIG_INGENIC_JZ4740_CGU', if_true: files('ingenic_jz4740_cgu.c'))
 
 system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.c'))
 

@@ -23,24 +23,26 @@
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-clock.h"
-#include "migration/vmstate.h"
-
 #include "hw/qdev-properties.h"
 #include "hw/misc/ingenic_cgu.h"
 
 #define REG_CPCCR   0x00
 #define REG_LCR     0x04
+#define REG_RSR     0x08
 #define REG_CPPCR   0x10
-#define REG_CPPSR   0x14
+#define REG_CPPSR   0x14    // JZ4755
 #define REG_CLKGR   0x20
-#define REG_OPCR    0x24
+#define REG_OPCR    0x24    // JZ4755
+#define REG_SCR     0x24    // JZ4740
 #define REG_I2SCDR  0x60
 #define REG_LPCDR   0x64
 #define REG_MSCCDR  0x68
+#define REG_UHCCDR  0x6c    // JZ4740
 #define REG_SSICDR  0x74
-#define REG_CIMCDR  0x7c
+#define REG_CIMCDR  0x7c    // JZ4755
 
 void qmp_stop(Error **errp);
 
@@ -58,6 +60,7 @@ static void ingenic_cgu_reset(Object *obj, ResetType type)
     s->reg.lcr    = 0x000000f8;
     s->reg.clkgr  = 0x00000000;
     s->reg.opcr   = 0x00001500;
+    s->reg.scr    = 0x00001500;
     s->reg.rsr    = 0x00000001;
 }
 
@@ -122,9 +125,8 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     IngenicCgu *cgu = opaque;
-    hwaddr aligned_addr = addr; // & ~3;
     uint64_t data = 0;
-    switch (aligned_addr) {
+    switch (addr) {
     case REG_CPCCR:
         data = cgu->reg.cpccr;
         break;
@@ -137,8 +139,11 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     case REG_CLKGR:
         data = cgu->reg.clkgr;
         break;
-    case REG_OPCR:
-        data = cgu->reg.opcr;
+    case REG_OPCR:  // REG_SCR
+        if (cgu->model == 0x4755)
+            data = cgu->reg.opcr;
+        else
+            data = cgu->reg.scr;
         break;
     case REG_I2SCDR:
         data = cgu->reg.i2scdr;
@@ -150,10 +155,9 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         data = cgu->reg.msccdr;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
+        qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", addr);
         qmp_stop(NULL);
     }
-    //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
     trace_ingenic_cgu_read(addr, data, size);
     return data;
 }
@@ -168,11 +172,13 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     }
 
     IngenicCgu *cgu = opaque;
-    hwaddr aligned_addr = addr; // & ~3;
     trace_ingenic_cgu_write(addr, data, size);
-    switch (aligned_addr) {
+    switch (addr) {
     case REG_CPCCR:
-        cgu->reg.cpccr = data & 0xffefffff;
+        if (cgu->model == 0x4755)
+            cgu->reg.cpccr = data & 0xffefffff;
+        else
+            cgu->reg.cpccr = data;
         ingenic_cgu_update_clocks(cgu);
         break;
     case REG_LCR:
@@ -187,20 +193,32 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         ingenic_cgu_update_clocks(cgu);
         break;
     case REG_CLKGR:
-        cgu->reg.clkgr = data & 0x01ffffff;
+        if (cgu->model == 0x4755)
+            cgu->reg.clkgr = data & 0x01ffffff;
+        else
+            cgu->reg.clkgr = data & 0xffff;
         break;
-    case REG_OPCR:
-        cgu->reg.opcr = data & 0xff74;
+    case REG_OPCR:  // REG_SCR
+        if (cgu->model == 0x4755)
+            cgu->reg.opcr = data & 0xff74;
+        else
+            cgu->reg.scr = data & 0xffd0;
         break;
     case REG_I2SCDR:
         cgu->reg.i2scdr = data & 0x01ff;
         break;
     case REG_LPCDR:
-        cgu->reg.lpcdr = data & 0xc00007ff;
+        if (cgu->model == 0x4755)
+            cgu->reg.lpcdr = data & 0xc00007ff;
+        else
+            cgu->reg.lpcdr = data & 0x800007ff;
         ingenic_cgu_update_clocks(cgu);
         break;
     case REG_MSCCDR:
         cgu->reg.msccdr = data & 0x1f;
+        break;
+    case REG_UHCCDR:
+        cgu->reg.uhccdr = data & 0x0f;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
@@ -238,12 +256,10 @@ static const ClockPortInitArray cgu_clks = {
 
 static void ingenic_cgu_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicCgu *s = INGENIC_CGU(obj);
-
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &cgu_ops, s, "cgu", 0x1000);
     sysbus_init_mmio(sbd, &s->mr);
-
     qdev_init_clocks(DEVICE(s), cgu_clks);
 }
 
@@ -260,7 +276,8 @@ static void ingenic_cgu_finalize(Object *obj)
 }
 
 static Property ingenic_cgu_properties[] = {
-    DEFINE_PROP_UINT32("ext-freq", IngenicCgu, ext_freq, 12000000),
+    DEFINE_PROP_UINT32("model", IngenicCgu, model, 0x4755),
+    DEFINE_PROP_UINT32("ext-freq", IngenicCgu, ext_freq, 24000000),
     DEFINE_PROP_UINT32("rtc-freq", IngenicCgu, rtc_freq, 32768),
     DEFINE_PROP_END_OF_LIST(),
 };
