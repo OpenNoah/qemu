@@ -104,14 +104,13 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
     memory_region_add_subregion(ahb, 0x00010000, emc_mr);
 
-    (void)env;
-#if 0
     // 0x13020000 Register DMAC on AHB0
     IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
-    memory_region_add_subregion(ahb0, 0x00020000, dmac_mr);
+    memory_region_add_subregion(ahb, 0x00020000, dmac_mr);
 
+#if 0
     // 0x13040000 Register UDC on AHB0
     IngenicUdc *udc = INGENIC_UDC(qdev_new(TYPE_INGENIC_UDC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(udc), &error_fatal);
@@ -274,6 +273,7 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     qdev_connect_gpio_out(nand_rb_splitter, 1,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
 #endif
+    (void)env;
 
     return soc;
 }
