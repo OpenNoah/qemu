@@ -323,3 +323,124 @@ static void ingenic_emc_nand_class_init(ObjectClass *class, void *data)
 }
 
 OBJECT_DEFINE_TYPE(IngenicEmcNand, ingenic_emc_nand, INGENIC_EMC_NAND, DEVICE)
+
+// ECC module
+
+#define REG_NFECCR  0x00
+#define REG_NFECC   0x04
+#define REG_NFPAR0  0x08
+#define REG_NFPAR1  0x0c
+#define REG_NFPAR2  0x10
+#define REG_NFINTS  0x14
+#define REG_NFINTE  0x18
+#define REG_NFERR0  0x1c
+#define REG_NFERR1  0x20
+#define REG_NFERR2  0x24
+#define REG_NFERR3  0x28
+
+static void ingenic_emc_nand_ecc_reset(Object *obj, ResetType type)
+{
+    IngenicEmcNandEcc *s = INGENIC_EMC_NAND_ECC(obj);
+    s->reg.nfeccr = 0;
+    s->reg.nfpar[0] = 0xdeadbeef;
+    s->reg.nfpar[1] = 0x01234567;
+    s->reg.nfpar[2] = 0x5a;
+}
+
+static uint64_t ingenic_emc_nand_ecc_read(void *opaque, hwaddr addr, unsigned size)
+{
+    IngenicEmcNandEcc *s = INGENIC_EMC_NAND_ECC(opaque);
+    uint64_t value = 0;
+    switch (addr) {
+    case REG_NFECCR:
+        value = s->reg.nfeccr;
+        break;
+    case REG_NFECC:
+        value = s->reg.nfecc;
+        break;
+    case REG_NFPAR0:
+    case REG_NFPAR1:
+    case REG_NFPAR2:
+        value = s->reg.nfpar[(addr - REG_NFPAR0) / 4];
+        break;
+    case REG_NFINTS:
+        value = s->reg.nfints;
+        break;
+    case REG_NFINTE:
+        value = s->reg.nfinte;
+        break;
+    case REG_NFERR0:
+    case REG_NFERR1:
+    case REG_NFERR2:
+    case REG_NFERR3:
+        value = s->reg.nferr[(addr - REG_NFERR0) / 4];
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
+        qmp_stop(NULL);
+    }
+    trace_ingenic_nand_ecc_read(addr, value);
+    return value;
+}
+
+static void ingenic_emc_nand_ecc_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
+{
+    IngenicEmcNandEcc *s = INGENIC_EMC_NAND_ECC(opaque);
+    trace_ingenic_nand_ecc_write(addr, value);
+    switch (addr) {
+    case REG_NFECCR:
+        if (value & BIT(1))
+            ingenic_emc_nand_ecc_reset(OBJECT(s), 0);
+        s->reg.nfeccr = value & 0x0d;
+        if (!(value & BIT(3)) && (value & BIT(4))) {
+            // Parity ready, decoding done
+            s->reg.nfints |= BIT(4) | BIT(3);
+        }
+        if (value & BIT(3)) {
+            qemu_log_mask(LOG_UNIMP, "%s: TODO Encoding\n", __func__);
+            qmp_stop(NULL);
+        }
+        break;
+    case REG_NFPAR0 + 0:
+    case REG_NFPAR0 + 1:
+    case REG_NFPAR0 + 2:
+    case REG_NFPAR0 + 3:
+    case REG_NFPAR1 + 0:
+    case REG_NFPAR1 + 1:
+    case REG_NFPAR1 + 2:
+    case REG_NFPAR1 + 3:
+    case REG_NFPAR2:
+        // TODO ECC
+        break;
+    case REG_NFINTS:
+        s->reg.nfints = s->reg.nfints & (0xe0000000 | (value & 0x1f));
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
+                      __func__, addr, value);
+        qmp_stop(NULL);
+    }
+}
+
+static MemoryRegionOps nand_ecc_ops = {
+    .read = ingenic_emc_nand_ecc_read,
+    .write = ingenic_emc_nand_ecc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void ingenic_emc_nand_ecc_init(Object *obj)
+{
+    IngenicEmcNandEcc *s = INGENIC_EMC_NAND_ECC(obj);
+    memory_region_init_io(&s->mr, obj, &nand_ecc_ops, s, "emc.nand.ecc", 0x40);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
+}
+
+static void ingenic_emc_nand_ecc_finalize(Object *obj)
+{
+}
+
+static void ingenic_emc_nand_ecc_class_init(ObjectClass *class, void *data)
+{
+}
+
+OBJECT_DEFINE_TYPE(IngenicEmcNandEcc, ingenic_emc_nand_ecc, INGENIC_EMC_NAND_ECC, SYS_BUS_DEVICE)

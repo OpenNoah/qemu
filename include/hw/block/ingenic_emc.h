@@ -30,8 +30,9 @@
 #define TYPE_INGENIC_EMC "ingenic-emc"
 OBJECT_DECLARE_TYPE(IngenicEmc, IngenicEmcClass, INGENIC_EMC)
 
-typedef struct IngenicEmcNand  IngenicEmcNand;
-typedef struct IngenicEmcSdram IngenicEmcSdram;
+typedef struct IngenicEmcNand    IngenicEmcNand;
+typedef struct IngenicEmcNandEcc IngenicEmcNandEcc;
+typedef struct IngenicEmcSdram   IngenicEmcSdram;
 
 typedef struct IngenicEmc {
     SysBusDevice parent_obj;
@@ -41,13 +42,14 @@ typedef struct IngenicEmc {
     MemoryRegion static_null_mr[4];
 
     IngenicEmcNand *nand[4];
+    IngenicEmcNandEcc *nand_ecc;
     IngenicEmcSdram *sdram;
 
     // GPIO
     qemu_irq io_nand_rb;
 
     // Properties
-    uint32_t sdram_size;
+    uint32_t model;
 
     // Registers
     uint32_t BCR;
@@ -97,6 +99,30 @@ typedef struct IngenicEmcNandClass
 {
     SysBusDeviceClass parent_class;
 } IngenicEmcNandClass;
+
+// NAND ECC
+
+#define TYPE_INGENIC_EMC_NAND_ECC "ingenic-emc-nand-ecc"
+OBJECT_DECLARE_TYPE(IngenicEmcNandEcc, IngenicEmcNandEccClass, INGENIC_EMC_NAND_ECC)
+
+typedef struct IngenicEmcNandEcc {
+    SysBusDevice parent_obj;
+    MemoryRegion mr;
+
+    struct {
+        uint8_t  nfeccr;
+        uint32_t nfecc;
+        uint32_t nfpar[3];
+        uint32_t nfints;
+        uint8_t  nfinte;
+        uint32_t nferr[4];
+    } reg;
+} IngenicEmcNandEcc;
+
+typedef struct IngenicEmcNandEccClass
+{
+    SysBusDeviceClass parent_class;
+} IngenicEmcNandEccClass;
 
 // SDRAM
 
