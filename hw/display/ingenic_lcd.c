@@ -552,12 +552,6 @@ static void ingenic_lcd_finalize(Object *obj)
 
 static void ingenic_lcd_class_init(ObjectClass *class, void *data)
 {
-#if 0
-    DeviceClass *dc = DEVICE_CLASS(class);
-    dc->realize = bcm2835_fb_realize;
-    dc->reset = bcm2835_fb_reset;
-    dc->vmsd = &vmstate_bcm2835_fb;
-#endif
     IngenicLcdClass *bch_class = INGENIC_LCD_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
