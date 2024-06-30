@@ -39,7 +39,7 @@
 #include "hw/sysbus.h"
 
 #include "hw/mips/ingenic_jz4740.h"
-#include "hw/misc/ingenic_jz4740_cgu.h"
+#include "hw/misc/ingenic_cgu.h"
 #include "hw/intc/ingenic_intc.h"
 #include "hw/dma/ingenic_dmac.h"
 #include "hw/timer/ingenic_tcu.h"
@@ -63,7 +63,8 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     CPUMIPSState *env;
 
     /* Needs to have clocks first */
-    IngenicJz4740Cgu *cgu = INGENIC_JZ4740_CGU(qdev_new(TYPE_INGENIC_JZ4740_CGU));
+    IngenicCgu *cgu = INGENIC_CGU(qdev_new(TYPE_INGENIC_CGU));
+    object_property_set_uint(OBJECT(cgu), "model", 0x4740, &error_fatal);
     object_property_set_uint(OBJECT(cgu), "ext-freq", 12000000, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(cgu), &error_fatal);
 
