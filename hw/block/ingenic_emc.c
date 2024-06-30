@@ -32,6 +32,19 @@
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
 
+#define REG_BCR     0x0000
+
+#define REG_SMCR1   0x0014
+#define REG_SMCR2   0x0018
+#define REG_SMCR3   0x001c
+#define REG_SMCR4   0x0020
+#define REG_SACR1   0x0034
+#define REG_SACR2   0x0038
+#define REG_SACR3   0x003c
+#define REG_SACR4   0x0040
+
+#define REG_NFCSR   0x0050
+
 void qmp_stop(Error **errp);
 
 static const uint32_t static_bank_addr[] = {
@@ -88,7 +101,7 @@ static uint64_t ingenic_emc_read(void *opaque, hwaddr addr, unsigned size)
     hwaddr aligned_addr = addr; // & ~3;
     uint64_t data = 0;
     switch (aligned_addr) {
-    case 0x00:
+    case REG_BCR:
         data = emc->BCR;
         break;
     case 0x14:
@@ -130,7 +143,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     uint32_t bank = 0;
     trace_ingenic_emc_write(addr, data);
     switch (aligned_addr) {
-    case 0x00:
+    case REG_BCR:
         emc->BCR = (data & 0x00000004) | 0x00000001;
         break;
     case 0x14:
@@ -225,18 +238,9 @@ static void ingenic_emc_init(Object *obj)
     memory_region_init(&emc->emc_mr, NULL, "emc", 0x10000);
     sysbus_init_mmio(sbd, &emc->emc_mr);
 
-    memory_region_init_io(&emc->emc_sramcfg_mr, obj, &emc_ops, emc, "emc.sramcfg", 0x80);
+    // Static RAM
+    memory_region_init_io(&emc->emc_sramcfg_mr, obj, &emc_ops, emc, "emc.sram.cfg", 0x80);
     memory_region_add_subregion(&emc->emc_mr, 0, &emc->emc_sramcfg_mr);
-
-    qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
-    qemu_irq_raise(emc->io_nand_rb);
-
-    emc->sdram = INGENIC_EMC_SDRAM(qdev_new(TYPE_INGENIC_EMC_SDRAM));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(emc->sdram), &error_fatal);
-    memory_region_add_subregion(&emc->emc_mr, 0x80,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 0));
-    memory_region_add_subregion(&emc->emc_mr, 0x8000,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 1));
 
     // Add NOP background static memory regions
     // Write gets ignored, read returns 0xff
@@ -245,6 +249,23 @@ static void ingenic_emc_init(Object *obj)
                               &emc_static_null_ops, (void *)(uintptr_t)bank, "emc.static.null", 0x04000000);
         memory_region_add_subregion_overlap(sys_mem, static_bank_addr[bank], &emc->static_null_mr[bank], -1);
     }
+
+    // NAND
+    qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
+    qemu_irq_raise(emc->io_nand_rb);
+
+    emc->nand_ecc = INGENIC_EMC_NAND_ECC(qdev_new(TYPE_INGENIC_EMC_NAND_ECC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(emc->nand_ecc), &error_fatal);
+    memory_region_add_subregion(&emc->emc_mr, 0x0100,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->nand_ecc), 0));
+
+    // SDRAM
+    emc->sdram = INGENIC_EMC_SDRAM(qdev_new(TYPE_INGENIC_EMC_SDRAM));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(emc->sdram), &error_fatal);
+    memory_region_add_subregion(&emc->emc_mr, 0x80,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 0));
+    memory_region_add_subregion(&emc->emc_mr, 0x8000,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 1));
 }
 
 static void ingenic_emc_finalize(Object *obj)
