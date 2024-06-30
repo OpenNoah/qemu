@@ -24,6 +24,10 @@ config IRIVER_D88
     select STMPE2403
     select D88_MATRIX_KEYPAD
 
+config NOAH_NP1380
+    bool
+    select INGENIC_JZ4740
+
 config INGENIC_JZ4755
     bool
     select SPLIT_IRQ
