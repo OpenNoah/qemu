@@ -114,6 +114,9 @@ config MPS2_SCC
 config INGENIC_CGU
     bool
 
+config INGENIC_JZ4740_CGU
+    bool
+
 config TZ_MPC
     bool
 

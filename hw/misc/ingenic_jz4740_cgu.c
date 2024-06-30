@@ -1,5 +1,5 @@
 /*
- * Ingenic JZ4755 Clock Reset and Power Controller emulation
+ * Ingenic JZ4740 Clock Reset and Power Controller emulation
  *
  * Copyright (c) 2024 Norman Zhi
  *
@@ -28,40 +28,40 @@
 #include "migration/vmstate.h"
 
 #include "hw/qdev-properties.h"
-#include "hw/misc/ingenic_cgu.h"
+#include "hw/misc/ingenic_jz4740_cgu.h"
 
 #define REG_CPCCR   0x00
 #define REG_LCR     0x04
+#define REG_RSR     0x08
 #define REG_CPPCR   0x10
-#define REG_CPPSR   0x14
 #define REG_CLKGR   0x20
-#define REG_OPCR    0x24
+#define REG_SCR     0x24
 #define REG_I2SCDR  0x60
 #define REG_LPCDR   0x64
 #define REG_MSCCDR  0x68
+#define REG_UHCCDR  0x6c
 #define REG_SSICDR  0x74
-#define REG_CIMCDR  0x7c
 
 void qmp_stop(Error **errp);
 
-static void ingenic_cgu_reset(Object *obj, ResetType type)
+static void ingenic_jz4740_cgu_reset(Object *obj, ResetType type)
 {
-    IngenicCgu *s = INGENIC_CGU(obj);
+    IngenicJz4740Cgu *s = INGENIC_JZ4740_CGU(obj);
     s->reg.cpccr  = 0x42040000;
     s->reg.cppcr  = 0x28080011;
-    s->reg.cppsr  = 0x80000000;
     s->reg.i2scdr = 0x00000004;
     s->reg.lpcdr  = 0x00000004;
-    s->reg.msccdr = 0x00000000;
-    s->reg.ssicdr = 0x00000000;
-    s->reg.cimcdr = 0x00000004;
-    s->reg.lcr    = 0x000000f8;
-    s->reg.clkgr  = 0x00000000;
-    s->reg.opcr   = 0x00001500;
-    s->reg.rsr    = 0x00000001;
+    s->reg.msccdr = 0x00000004;
+    s->reg.uhccdr = 0x00000004;
+    s->reg.ssicdr = 0x00000004;
+    //s->reg.cimcdr = 0x00000004;
+    //s->reg.lcr    = 0x000000f8;
+    //s->reg.clkgr  = 0x00000000;
+    //s->reg.opcr   = 0x00001500;
+    //s->reg.rsr    = 0x00000001;
 }
 
-static void ingenic_cgu_update_clocks(IngenicCgu *s)
+static void ingenic_jz4740_cgu_update_clocks(IngenicJz4740Cgu *s)
 {
     // Update clock frequencies
     if ((s->reg.cppcr & (BIT(8) | BIT(9))) == BIT(8)) {
@@ -77,7 +77,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
         clock_update(s->clk_pll, clock_get(s->clk_ext));
     }
 
-    static const uint32_t div_map[16] = {1, 2, 3, 4, 6, 8, 0};
+    static const uint32_t div_map[16] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32};
 
     // CCLK
     uint32_t cdiv = div_map[s->reg.cpccr & 0x0f];
@@ -112,7 +112,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
     trace_ingenic_cgu_cclk_freq(clock_get_hz(s->clk_cclk));
 }
 
-static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t ingenic_jz4740_cgu_read(void *opaque, hwaddr addr, unsigned size)
 {
     if (unlikely(size != 4 || (addr & 3) != 0)) {
         qemu_log_mask(LOG_GUEST_ERROR, "CGU read unaligned @ " HWADDR_FMT_plx "/%"PRIx32"\n",
@@ -121,7 +121,7 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    IngenicCgu *cgu = opaque;
+    IngenicJz4740Cgu *cgu = opaque;
     hwaddr aligned_addr = addr; // & ~3;
     uint64_t data = 0;
     switch (aligned_addr) {
@@ -137,9 +137,6 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
     case REG_CLKGR:
         data = cgu->reg.clkgr;
         break;
-    case REG_OPCR:
-        data = cgu->reg.opcr;
-        break;
     case REG_I2SCDR:
         data = cgu->reg.i2scdr;
         break;
@@ -153,12 +150,11 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         qemu_log_mask(LOG_GUEST_ERROR, "CGU read unknown address " HWADDR_FMT_plx "\n", aligned_addr);
         qmp_stop(NULL);
     }
-    //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
     trace_ingenic_cgu_read(addr, data, size);
     return data;
 }
 
-static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
+static void ingenic_jz4740_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
     if (unlikely(size != 4 || (addr & 3) != 0)) {
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unaligned @ " HWADDR_FMT_plx "/%"PRIx32" 0x%"PRIx64"\n",
@@ -167,13 +163,13 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         return;
     }
 
-    IngenicCgu *cgu = opaque;
-    hwaddr aligned_addr = addr; // & ~3;
+    IngenicJz4740Cgu *cgu = opaque;
+    hwaddr aligned_addr = addr;
     trace_ingenic_cgu_write(addr, data, size);
     switch (aligned_addr) {
     case REG_CPCCR:
-        cgu->reg.cpccr = data & 0xffefffff;
-        ingenic_cgu_update_clocks(cgu);
+        cgu->reg.cpccr = data;
+        ingenic_jz4740_cgu_update_clocks(cgu);
         break;
     case REG_LCR:
         cgu->reg.lcr = data & 0xff;
@@ -184,23 +180,23 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             // PLL ON
             cgu->reg.cppcr |= BIT(10);
         }
-        ingenic_cgu_update_clocks(cgu);
+        ingenic_jz4740_cgu_update_clocks(cgu);
         break;
     case REG_CLKGR:
-        cgu->reg.clkgr = data & 0x01ffffff;
-        break;
-    case REG_OPCR:
-        cgu->reg.opcr = data & 0xff74;
+        cgu->reg.clkgr = data & 0xffff;
         break;
     case REG_I2SCDR:
         cgu->reg.i2scdr = data & 0x01ff;
         break;
     case REG_LPCDR:
-        cgu->reg.lpcdr = data & 0xc00007ff;
-        ingenic_cgu_update_clocks(cgu);
+        cgu->reg.lpcdr = data & 0x800007ff;
+        ingenic_jz4740_cgu_update_clocks(cgu);
         break;
     case REG_MSCCDR:
         cgu->reg.msccdr = data & 0x1f;
+        break;
+    case REG_UHCCDR:
+        cgu->reg.uhccdr = data & 0x0f;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "CGU write unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n", addr, data);
@@ -210,36 +206,36 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 }
 
 static MemoryRegionOps cgu_ops = {
-    .read = ingenic_cgu_read,
-    .write = ingenic_cgu_write,
+    .read = ingenic_jz4740_cgu_read,
+    .write = ingenic_jz4740_cgu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-IngenicCgu *ingenic_cgu_get_cgu()
+IngenicJz4740Cgu *ingenic_jz4740_cgu_get_cgu()
 {
-    Object *obj = object_resolve_path_type("", TYPE_INGENIC_CGU, NULL);
+    Object *obj = object_resolve_path_type("", TYPE_INGENIC_JZ4740_CGU, NULL);
     if (!obj) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: "TYPE_INGENIC_CGU" device not found", __func__);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: "TYPE_INGENIC_JZ4740_CGU" device not found", __func__);
         return NULL;
     }
-    return INGENIC_CGU(obj);
+    return INGENIC_JZ4740_CGU(obj);
 }
 
 static const ClockPortInitArray cgu_clks = {
-    QDEV_CLOCK_OUT(IngenicCgu, clk_ext),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_rtc),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_pll),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_cclk),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_mclk),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_pclk),
-    QDEV_CLOCK_OUT(IngenicCgu, clk_lcdpix),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_ext),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_rtc),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_pll),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_cclk),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_mclk),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_pclk),
+    QDEV_CLOCK_OUT(IngenicJz4740Cgu, clk_lcdpix),
     QDEV_CLOCK_END
 };
 
-static void ingenic_cgu_init(Object *obj)
+static void ingenic_jz4740_cgu_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IngenicCgu *s = INGENIC_CGU(obj);
+    IngenicJz4740Cgu *s = INGENIC_JZ4740_CGU(obj);
 
     memory_region_init_io(&s->mr, OBJECT(s), &cgu_ops, s, "cgu", 0x1000);
     sysbus_init_mmio(sbd, &s->mr);
@@ -247,37 +243,37 @@ static void ingenic_cgu_init(Object *obj)
     qdev_init_clocks(DEVICE(s), cgu_clks);
 }
 
-static void ingenic_cgu_realize(DeviceState *dev, Error **errp)
+static void ingenic_jz4740_cgu_realize(DeviceState *dev, Error **errp)
 {
-    IngenicCgu *s = INGENIC_CGU(dev);
+    IngenicJz4740Cgu *s = INGENIC_JZ4740_CGU(dev);
     clock_set_hz(s->clk_ext, s->ext_freq);
     clock_set_hz(s->clk_rtc, s->rtc_freq);
-    ingenic_cgu_update_clocks(s);
+    ingenic_jz4740_cgu_update_clocks(s);
 }
 
-static void ingenic_cgu_finalize(Object *obj)
+static void ingenic_jz4740_cgu_finalize(Object *obj)
 {
 }
 
-static Property ingenic_cgu_properties[] = {
-    DEFINE_PROP_UINT32("ext-freq", IngenicCgu, ext_freq, 12000000),
-    DEFINE_PROP_UINT32("rtc-freq", IngenicCgu, rtc_freq, 32768),
+static Property ingenic_jz4740_cgu_properties[] = {
+    DEFINE_PROP_UINT32("ext-freq", IngenicJz4740Cgu, ext_freq, 12000000),
+    DEFINE_PROP_UINT32("rtc-freq", IngenicJz4740Cgu, rtc_freq, 32768),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_cgu_class_init(ObjectClass *class, void *data)
+static void ingenic_jz4740_cgu_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
-    device_class_set_props(dc, ingenic_cgu_properties);
-    dc->realize = ingenic_cgu_realize;
+    device_class_set_props(dc, ingenic_jz4740_cgu_properties);
+    dc->realize = ingenic_jz4740_cgu_realize;
 
-    IngenicCguClass *cgu_class = INGENIC_CGU_CLASS(class);
+    IngenicJz4740CguClass *cgu_class = INGENIC_JZ4740_CGU_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
-                                       ingenic_cgu_reset,
+                                       ingenic_jz4740_cgu_reset,
                                        NULL,
                                        NULL,
                                        &cgu_class->parent_phases);
 }
 
-OBJECT_DEFINE_TYPE(IngenicCgu, ingenic_cgu, INGENIC_CGU, SYS_BUS_DEVICE)
+OBJECT_DEFINE_TYPE(IngenicJz4740Cgu, ingenic_jz4740_cgu, INGENIC_JZ4740_CGU, SYS_BUS_DEVICE)

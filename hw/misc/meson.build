@@ -153,6 +153,7 @@ specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_cmgcr.c', 'mips_cp
 specific_ss.add(when: 'CONFIG_MIPS_ITU', if_true: files('mips_itu.c'))
 
 specific_ss.add(when: 'CONFIG_INGENIC_CGU', if_true: files('ingenic_cgu.c'))
+specific_ss.add(when: 'CONFIG_INGENIC_JZ4740_CGU', if_true: files('ingenic_jz4740_cgu.c'))
 
 system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.c'))
 
