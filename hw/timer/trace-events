@@ -108,3 +108,4 @@ ingenic_tcu_freq(uint32_t freq) "freq=%u"
 ingenic_tcu_schedule(uint32_t count, uint32_t half, uint32_t full, uint32_t delta, uint64_t target_ns) "count=%u half=%u full=%u delta=%u target_ns=%" PRIu64
 ingenic_tcu_wrap(int64_t before, int64_t after, int64_t delta_ns, uint64_t inc_ticks) "before=%" PRIi64 " after=%" PRIi64 " delta_ns=%" PRIi64 " inc_ticks=%" PRIu64
 ingenic_tcu_callback(int64_t time) "time=%" PRIi64
+ingenic_tcu_irq(uint32_t pending) "pending=0x%08x"

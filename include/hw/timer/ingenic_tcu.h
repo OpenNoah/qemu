@@ -30,6 +30,8 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 
+#define INGENIC_TCU_MAX_TIMERS  8
+
 #define TYPE_INGENIC_TCU "ingenic-tcu"
 OBJECT_DECLARE_TYPE(IngenicTcu, IngenicTcuClass, INGENIC_TCU)
 
@@ -65,6 +67,7 @@ typedef struct IngenicTcu
     MemoryRegion mr;
     qemu_irq irq[3];
     uint32_t irq_state;
+    uint32_t model;
 
     struct {
         uint32_t tstr;
@@ -72,7 +75,7 @@ typedef struct IngenicTcu
         uint16_t ter;
         uint32_t tfr;
         uint32_t tmr;
-        IngenicTcuTimer timer[6];
+        IngenicTcuTimer timer[INGENIC_TCU_MAX_TIMERS];
     } tcu;
 
     struct {

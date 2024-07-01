@@ -245,21 +245,21 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         uint32_t dev_irq;
         uint32_t intc_irq;
     } irqs[] = {
-        {DEVICE(lcd),  "irq-out",  0, 31},
+        {DEVICE(lcd),  "irq-out", 0, 31},
         // 30 IPU
-        {DEVICE(dmac), "irq-out",  0, 29},
-        {DEVICE(dmac), "irq-out",  1, 28},
+        {DEVICE(dmac), "irq-out", 0, 29},
+        {DEVICE(dmac), "irq-out", 1, 28},
         // 24 MSC1
-        {DEVICE(tcu),  "irq-tcu0", 0, 23},
-        {DEVICE(tcu),  "irq-tcu1", 0, 22},
-        {DEVICE(tcu),  "irq-tcu2", 0, 21},
-        {DEVICE(adc),  "irq-out",  0, 18},
-        {DEVICE(gpio['A' - 'A']),  "irq-out",  0, 16},
-        {DEVICE(gpio['B' - 'A']),  "irq-out",  0, 15},
-        {DEVICE(gpio['C' - 'A']),  "irq-out",  0, 14},
-        {DEVICE(gpio['D' - 'A']),  "irq-out",  0, 13},
-        {DEVICE(gpio['E' - 'A']),  "irq-out",  0, 12},
-        {DEVICE(gpio['F' - 'A']),  "irq-out",  0, 11},
+        {DEVICE(tcu),  "irq-out", 0, 23},
+        {DEVICE(tcu),  "irq-out", 1, 22},
+        {DEVICE(tcu),  "irq-out", 2, 21},
+        {DEVICE(adc),  "irq-out", 0, 18},
+        {DEVICE(gpio['A' - 'A']), "irq-out",  0, 16},
+        {DEVICE(gpio['B' - 'A']), "irq-out",  0, 15},
+        {DEVICE(gpio['C' - 'A']), "irq-out",  0, 14},
+        {DEVICE(gpio['D' - 'A']), "irq-out",  0, 13},
+        {DEVICE(gpio['E' - 'A']), "irq-out",  0, 12},
+        {DEVICE(gpio['F' - 'A']), "irq-out",  0, 11},
         // 8 UART1
         // 6 RTC
         {0}
