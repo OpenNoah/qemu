@@ -105,6 +105,7 @@ swim_switch_to_iwm(void) "switch from ISM to IWM mode"
 # ingenic_emc.c
 ingenic_emc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_emc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_emc_mode(int bank, const char *mode) "bank=%u mode=%s"
 
 # ingenic_emc_nand.c
 ingenic_nand_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
@@ -118,6 +119,7 @@ ingenic_nand_ecc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_sdram_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_sdram_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_sdram_dmr_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_sdram_enable(int bank) "bank=%u"
 
 # ingenic_bch.c
 ingenic_bch_write_data(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
