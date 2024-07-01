@@ -31,6 +31,12 @@
 #include "hw/intc/ingenic_intc.h"
 #include "trace.h"
 
+#define REG_ICSR    0x00
+#define REG_ICMR    0x04
+#define REG_ICMSR   0x08
+#define REG_ICMCR   0x0c
+#define REG_ICPR    0x10
+
 void qmp_stop(Error **errp);
 
 static void intc_update(IngenicIntc *s)
@@ -63,13 +69,13 @@ static uint64_t ingenic_intc_read(void *opaque, hwaddr addr, unsigned size)
     IngenicIntc *s = INGENIC_INTC(opaque);
     uint64_t data = 0;
     switch (addr) {
-    case 0x00:
+    case REG_ICSR:
         data = s->icsr;
         break;
-    case 0x04:
+    case REG_ICMR:
         data = s->icmr;
         break;
-    case 0x10:
+    case REG_ICPR:
         data = s->icpr;
         break;
     default:
@@ -85,20 +91,21 @@ static void ingenic_intc_write(void *opaque, hwaddr addr, uint64_t data, unsigne
 {
     trace_ingenic_intc_write(addr, data);
     IngenicIntc *s = INGENIC_INTC(opaque);
+    uint32_t icmr = s->icmr;
     switch (addr) {
-    case 0x08:
-        if (~s->icmr & data)
-            trace_ingenic_intc_enable(s->icmr);
+    case REG_ICMSR:
         s->icmr |= data;
-        intc_update(s);
-        break;
-    case 0x0c:
-        if (s->icmr & data)
+        if (~icmr & data)
             trace_ingenic_intc_enable(s->icmr);
-        s->icmr &= ~data;
         intc_update(s);
         break;
-    case 0x10:
+    case REG_ICMCR:
+        s->icmr &= ~data;
+        if (icmr & data)
+            trace_ingenic_intc_enable(s->icmr);
+        intc_update(s);
+        break;
+    case REG_ICPR:
         // Datasheet says ICPR is read-only
         break;
     default:
