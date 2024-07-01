@@ -41,12 +41,12 @@ static void update_irq(IngenicTcu *s)
     uint32_t irq = s->tcu.tfr & ~s->tcu.tmr;
     if (irq != s->irq_state) {
         s->irq_state = irq;
-        // OST
-        qemu_set_irq(s->ost.irq, !!(irq & 0x00008000));
-        // TCU1: 0, 3, 4, 5
-        qemu_set_irq(s->tcu.irq[0], !!(irq & 0x00390039));
-        // TCU2: 1, 2
-        qemu_set_irq(s->tcu.irq[1], !!(irq & 0x00060006));
+        // OST uses interrupt 0
+        qemu_set_irq(s->irq[0], !!(irq & 0x00008000));
+        // Timer 5 uses interrupt 1
+        qemu_set_irq(s->irq[1], !!(irq & 0x00200020));
+        // Timer 0-4 uses interrupt 2
+        qemu_set_irq(s->irq[2], !!(irq & 0x001f001f));
     }
 }
 
@@ -381,9 +381,9 @@ static void ingenic_tcu_init(Object *obj)
     timer_init_ns(&s->ost.tmr.qts, QEMU_CLOCK_VIRTUAL, &tmr_cb, &s->ost.tmr);
 
     // Interrupts
-    qdev_init_gpio_out_named(DEVICE(obj), &s->ost.irq,    "irq-tcu0", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->tcu.irq[0], "irq-tcu1", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->tcu.irq[1], "irq-tcu2", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[0], "irq-tcu0", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[1], "irq-tcu1", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[2], "irq-tcu2", 1);
 }
 
 static void ingenic_tcu_finalize(Object *obj)

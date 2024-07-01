@@ -63,9 +63,9 @@ typedef struct IngenicTcu
 {
     SysBusDevice parent_obj;
     MemoryRegion mr;
+    qemu_irq irq[3];
     uint32_t irq_state;
 
-    // Registers
     struct {
         uint32_t tstr;
         uint32_t tsr;
@@ -73,13 +73,11 @@ typedef struct IngenicTcu
         uint32_t tfr;
         uint32_t tmr;
         IngenicTcuTimer timer[6];
-        qemu_irq irq[2];
     } tcu;
 
     struct {
         uint16_t tcsr;
         IngenicTcuTimerCommon tmr;
-        qemu_irq irq;
     } ost;
 
     struct {
