@@ -174,7 +174,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         if (diff) {
             for (int bank = 0; bank < 4; bank++) {
                 bool nand_mode = !!(emc->NFCSR & BIT(bank * 2));
-                qemu_log("%s: EMC bank %"PRIu32": %s\n", __func__, bank + 1, nand_mode ? "NAND" : "SRAM");
+                trace_ingenic_emc_mode(bank + 1, nand_mode ? "NAND" : "SRAM");
                 if (emc->nand[bank]) {
                     memory_region_set_enabled(&emc->nand[bank]->mr, nand_mode);
                     memory_region_set_enabled(&emc->static_null_mr[bank], !nand_mode);

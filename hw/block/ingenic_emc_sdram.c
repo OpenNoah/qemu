@@ -111,7 +111,7 @@ static void ingenic_emc_sdram_dmr_write(void *opaque, hwaddr addr, uint64_t data
     if (s->dmcr & BIT(23)) {
         // SDMR write, enable SDRAM banks
         uint32_t bank = (s->dmcr >> 16) & 1;
-        qemu_log("%s: Enabling bank %"PRIu32"\n", __func__, bank);
+        trace_ingenic_sdram_enable(bank);
         if (!s->size[bank]) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %"PRIu32" no media\n", __func__, bank);
             return;
