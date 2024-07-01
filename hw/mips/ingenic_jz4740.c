@@ -234,7 +234,6 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         qdev_get_gpio_in_named(DEVICE(gpio['C' - 'A']), "gpio-in", 30));
 #endif
 
-#if 0
     // Connect interrupts
     const struct {
         DeviceState *dev;
@@ -242,26 +241,28 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         uint32_t dev_irq;
         uint32_t intc_irq;
     } irqs[] = {
-        {DEVICE(lcd),  "irq-out",  0, 31},
-        // 30 IPU
-        {DEVICE(dmac), "irq-out",  0, 29},
-        {DEVICE(dmac), "irq-out",  1, 28},
-        // 24 MSC1
+        {DEVICE(lcd),  "irq-out",  0, 30},
+        // 29 IPU
+        {DEVICE(gpio['A' - 'A']),  "irq-out",  0, 28},
+        {DEVICE(gpio['B' - 'A']),  "irq-out",  0, 27},
+        {DEVICE(gpio['C' - 'A']),  "irq-out",  0, 26},
+        {DEVICE(gpio['D' - 'A']),  "irq-out",  0, 25},
+        // 24 UDC
         {DEVICE(tcu),  "irq-tcu0", 0, 23},
         {DEVICE(tcu),  "irq-tcu1", 0, 22},
         {DEVICE(tcu),  "irq-tcu2", 0, 21},
-        {DEVICE(adc),  "irq-out",  0, 18},
-        {DEVICE(gpio['A' - 'A']),  "irq-out",  0, 16},
-        {DEVICE(gpio['B' - 'A']),  "irq-out",  0, 15},
-        {DEVICE(gpio['C' - 'A']),  "irq-out",  0, 14},
-        {DEVICE(gpio['D' - 'A']),  "irq-out",  0, 13},
-        {DEVICE(gpio['E' - 'A']),  "irq-out",  0, 12},
-        {DEVICE(gpio['F' - 'A']),  "irq-out",  0, 11},
-        // 8 UART1
-        // 6 RTC
-        {0}
+        {DEVICE(dmac), "irq-out",  0, 20},
+        // 18 AIC
+        // 17 CIM
+        // 16 SSI
+        // 15 RTC
+        // 14 MSC
+        {DEVICE(adc),  "irq-out",  0, 12},
+        // 3 UHC
+        // 2 EMC
+        // 1 I2C
     };
-    for (int i = 0; irqs[i].dev != NULL; i++) {
+    for (int i = 0; i < ARRAY_SIZE(irqs); i++) {
         qemu_irq irq;
         irq = qdev_get_gpio_in_named(DEVICE(intc), "irq-in", irqs[i].intc_irq);
         qdev_connect_gpio_out_named(irqs[i].dev,
@@ -269,11 +270,11 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
 
+#if 0
     // Connect DMA requests
     qdev_connect_gpio_out(nand_rb_splitter, 1,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
 #endif
-    (void)env;
 
     return soc;
 }
