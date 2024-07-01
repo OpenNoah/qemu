@@ -140,6 +140,7 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
 
     // 0x1000204C Register TCU/OST/WDT on APB
     IngenicTcu *tcu = INGENIC_TCU(qdev_new(TYPE_INGENIC_TCU));
+    object_property_set_uint(OBJECT(tcu), "model", 0x4740, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcu), &error_fatal);
     MemoryRegion *tcu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(tcu), 0);
     memory_region_add_subregion(apb, 0x00002000, tcu_mr);
@@ -241,17 +242,17 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         uint32_t dev_irq;
         uint32_t intc_irq;
     } irqs[] = {
-        {DEVICE(lcd),  "irq-out",  0, 30},
+        {DEVICE(lcd), "irq-out", 0, 30},
         // 29 IPU
-        {DEVICE(gpio['A' - 'A']),  "irq-out",  0, 28},
-        {DEVICE(gpio['B' - 'A']),  "irq-out",  0, 27},
-        {DEVICE(gpio['C' - 'A']),  "irq-out",  0, 26},
-        {DEVICE(gpio['D' - 'A']),  "irq-out",  0, 25},
+        {DEVICE(gpio['A' - 'A']), "irq-out",  0, 28},
+        {DEVICE(gpio['B' - 'A']), "irq-out",  0, 27},
+        {DEVICE(gpio['C' - 'A']), "irq-out",  0, 26},
+        {DEVICE(gpio['D' - 'A']), "irq-out",  0, 25},
         // 24 UDC
-        {DEVICE(tcu),  "irq-tcu0", 0, 23},
-        {DEVICE(tcu),  "irq-tcu1", 0, 22},
-        {DEVICE(tcu),  "irq-tcu2", 0, 21},
-        {DEVICE(dmac), "irq-out",  0, 20},
+        {DEVICE(tcu),  "irq-out", 0, 23},
+        {DEVICE(tcu),  "irq-out", 1, 22},
+        {DEVICE(tcu),  "irq-out", 2, 21},
+        {DEVICE(dmac), "irq-out", 0, 20},
         // 18 AIC
         // 17 CIM
         // 16 SSI

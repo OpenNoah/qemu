@@ -23,14 +23,43 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "hw/qdev-clock.h"
-#include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "migration/vmstate.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-clock.h"
+#include "hw/qdev-properties.h"
 #include "hw/timer/ingenic_tcu.h"
 #include "hw/misc/ingenic_cgu.h"
 #include "trace.h"
+
+// Timer status
+#define REG_TSTR    0xf0    // JZ4755
+#define REG_TSTSR   0xf4    // JZ4755
+#define REG_TSTCR   0xf8    // JZ4755
+
+// TCU
+#define REG_TSR     0x1c
+#define REG_TSSR    0x2c
+#define REG_TSCR    0x3c
+#define REG_TER     0x10
+#define REG_TESR    0x14
+#define REG_TECR    0x18
+#define REG_TFR     0x20
+#define REG_TFSR    0x24
+#define REG_TFCR    0x28
+#define REG_TMR     0x30
+#define REG_TMSR    0x34
+#define REG_TMCR    0x38
+#define REG_TDFR0   0x40
+#define REG_TDHR0   0x44
+#define REG_TCNT0   0x48
+#define REG_TCSR0   0x4c
+
+// OST
+#define REG_OSTDR   0xe0    // JZ4755
+#define REG_OSTCNT  0xe8    // JZ4755
+#define REG_OSTCSR  0xec    // JZ4755
 
 void qmp_stop(Error **errp);
 
@@ -41,12 +70,21 @@ static void update_irq(IngenicTcu *s)
     uint32_t irq = s->tcu.tfr & ~s->tcu.tmr;
     if (irq != s->irq_state) {
         s->irq_state = irq;
-        // OST uses interrupt 0
-        qemu_set_irq(s->irq[0], !!(irq & 0x00008000));
-        // Timer 5 uses interrupt 1
-        qemu_set_irq(s->irq[1], !!(irq & 0x00200020));
-        // Timer 0-4 uses interrupt 2
-        qemu_set_irq(s->irq[2], !!(irq & 0x001f001f));
+        trace_ingenic_tcu_irq(irq);
+        if (s->model == 0x4755) {
+            // OST uses interrupt 0
+            qemu_set_irq(s->irq[0], !!(irq & 0x00008000));
+            // Timer 5 uses interrupt 1
+            qemu_set_irq(s->irq[1], !!(irq & 0x00200020));
+            // Timer 0-4 uses interrupt 2
+            qemu_set_irq(s->irq[2], !!(irq & 0x001f001f));
+        } else {
+            // Timer 0 and Timer 1 have separated interrupt
+            qemu_set_irq(s->irq[0], !!(irq & 0x00010001));
+            qemu_set_irq(s->irq[1], !!(irq & 0x00020002));
+            // Timer 2-7 has one interrupt in common
+            qemu_set_irq(s->irq[2], !!(irq & 0x00fc00fc));
+        }
     }
 }
 
@@ -169,18 +207,18 @@ static void tmr_enable(IngenicTcuTimerCommon *tmr, bool en)
 static uint64_t ingenic_tcu_timer_read(IngenicTcuTimer *timer, hwaddr addr, unsigned size)
 {
     uint64_t data = 0;
-    switch (addr % 0x10) {
-    case 0x00:
+    switch (addr & 0x0f) {
+    case REG_TDFR0 & 0x0f:
         data = timer->tmr.top;
         break;
-    case 0x04:
+    case REG_TDHR0 & 0x0f:
         data = timer->tmr.comp;
         break;
-    case 0x08:
+    case REG_TCNT0 & 0x0f:
         tmr_update_cnt(&timer->tmr);
         data = timer->tmr.cnt;
         break;
-    case 0x0c:
+    case REG_TCSR0 & 0x0f:
         data = timer->tcsr;
         break;
     default:
@@ -193,17 +231,17 @@ static uint64_t ingenic_tcu_timer_read(IngenicTcuTimer *timer, hwaddr addr, unsi
 static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_t data, unsigned size)
 {
     uint32_t diff = 0;
-    switch (addr % 0x10) {
-    case 0x00:
+    switch (addr & 0x0f) {
+    case REG_TDFR0 & 0x0f:
         timer->tmr.top = data & 0xff;
         break;
-    case 0x04:
+    case REG_TDHR0 & 0x0f:
         timer->tmr.comp = data;
         break;
-    case 0x08:
+    case REG_TCNT0 & 0x0f:
         timer->tmr.cnt = data;
         break;
-    case 0x0c:
+    case REG_TCSR0 & 0x0f:
         diff = (timer->tcsr ^ data) & 0x3f;
         timer->tcsr = data & 0x03bf;
         // Configure timer frequency
@@ -226,7 +264,9 @@ static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_
 static void ingenic_tcu_reset(Object *obj, ResetType type)
 {
     IngenicTcu *s = INGENIC_TCU(obj);
-    (void)s;
+    for (int i = 0; i < INGENIC_TCU_MAX_TIMERS; i++)
+        timer_del(&s->tcu.timer[i].tmr.qts);
+    timer_del(&s->ost.tmr.qts);
 }
 
 static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
@@ -238,29 +278,29 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
         data = ingenic_tcu_timer_read(&s->tcu.timer[timer], addr, size);
     } else {
         switch (addr) {
-        case 0x10:
+        case REG_TER:
             data = s->tcu.ter;
             break;
-        case 0x1c:
+        case REG_TSR:
             data = s->tcu.tsr;
             break;
-        case 0x20:
+        case REG_TFR:
             data = s->tcu.tfr;
             break;
-        case 0x30:
+        case REG_TMR:
             data = s->tcu.tmr;
             break;
-        case 0xe0:
+        case REG_OSTDR:
             data = s->ost.tmr.comp;
             break;
-        case 0xe8:
+        case REG_OSTCNT:
             tmr_update_cnt(&s->ost.tmr);
             data = s->ost.tmr.cnt;
             break;
-        case 0xec:
+        case REG_OSTCSR:
             data = s->ost.tcsr;
             break;
-        case 0xf0:
+        case REG_TSTR:
             data = s->tcu.tstr;
             break;
         default:
@@ -282,8 +322,8 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     } else {
         uint32_t diff = 0;
         switch (addr) {
-        case 0x14:
-        case 0x18:
+        case REG_TESR:
+        case REG_TECR:
             diff = s->tcu.ter ^ data;
             if (addr == 0x14)
                 s->tcu.ter |=  data & 0x803f;
@@ -292,7 +332,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 
             // Update timers
             trace_ingenic_tcu_enables(s->tcu.ter);
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < INGENIC_TCU_MAX_TIMERS; i++) {
                 if (diff & BIT(i)) {
                     bool en = s->tcu.ter & BIT(i);
                     tmr_enable(&s->tcu.timer[i].tmr, en);
@@ -303,35 +343,35 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                 tmr_enable(&s->ost.tmr, en);
             }
             break;
-        case 0x24:
+        case REG_TFSR:
             s->tcu.tfr |=  data & 0x003f803f;
             update_irq(s);
             break;
-        case 0x28:
+        case REG_TFCR:
             s->tcu.tfr &= ~data & 0x003f803f;
             update_irq(s);
             break;
-        case 0x2c:
+        case REG_TSSR:
             s->tcu.tsr |=  data & 0x0001803f;
             break;
-        case 0x3c:
+        case REG_TSCR:
             s->tcu.tsr &= ~data & 0x0001803f;
             break;
-        case 0x34:
+        case REG_TMSR:
             s->tcu.tmr |=  data & 0x003f803f;
             break;
-        case 0x38:
+        case REG_TMCR:
             s->tcu.tmr &= ~data & 0x003f803f;
             break;
-        case 0xe0:
+        case REG_OSTDR:
             s->ost.tmr.comp = data;
             if (!(s->ost.tcsr & BIT(15)))
                 s->ost.tmr.top = data;
             break;
-        case 0xe8:
+        case REG_OSTCNT:
             s->ost.tmr.cnt = data;
             break;
-        case 0xec:
+        case REG_OSTCSR:
             diff = (s->ost.tcsr ^ data) & 0x3f;
             s->ost.tcsr = data & 0x823f;
             // Configure timer frequency
@@ -339,10 +379,10 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                 tmr_update_clk_period(&s->ost.tmr, s->ost.tcsr);
             s->ost.tmr.top = s->ost.tcsr & BIT(15) ? 0xffffffff : s->ost.tmr.comp;
             break;
-        case 0xf4:
+        case REG_TSTSR:
             s->tcu.tstr |=  data & 0x00060006;
             break;
-        case 0xf8:
+        case REG_TSTCR:
             s->tcu.tstr &= ~data & 0x00060006;
             break;
         default:
@@ -366,7 +406,7 @@ static void ingenic_tcu_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
 
     // General purpose timers
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < INGENIC_TCU_MAX_TIMERS; i++) {
         s->tcu.timer[i].tmr.tcu = s;
         s->tcu.timer[i].tmr.irq_top_mask  = 0x00000001 << i;
         s->tcu.timer[i].tmr.irq_comp_mask = 0x00010000 << i;
@@ -381,21 +421,27 @@ static void ingenic_tcu_init(Object *obj)
     timer_init_ns(&s->ost.tmr.qts, QEMU_CLOCK_VIRTUAL, &tmr_cb, &s->ost.tmr);
 
     // Interrupts
-    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[0], "irq-tcu0", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[1], "irq-tcu1", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[2], "irq-tcu2", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->irq[0], "irq-out", 3);
 }
 
 static void ingenic_tcu_finalize(Object *obj)
 {
     IngenicTcu *s = INGENIC_TCU(obj);
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < INGENIC_TCU_MAX_TIMERS; i++)
         timer_del(&s->tcu.timer[i].tmr.qts);
     timer_del(&s->ost.tmr.qts);
 }
 
+static Property ingenic_tcu_properties[] = {
+    DEFINE_PROP_UINT32("model", IngenicTcu, model, 0x4755),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_tcu_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+    device_class_set_props(dc, ingenic_tcu_properties);
+
     IngenicTcuClass *bch_class = INGENIC_TCU_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
