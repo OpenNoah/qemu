@@ -111,25 +111,28 @@ static void ingenic_adc_ts_event(void *opaque, int x, int y, int z, int buttons_
         ingenic_adc_update_irq(s);
     }
     if (pressed) {
-        int vcc = 32768;
-        // Handle screen flip
-        y = vcc - y;
-        // Calculate X, Y and pressure
+        int fs = 32768;
+        // Screen flip
+        y = fs - y;
+        // X and Y margin offsets
+        int xmin = 1200;
+        int xmax = fs - 1200;
+        int ymin = 1600;
+        int ymax = fs - 1600;
+        x = xmin + x * (xmax - xmin) / fs;
+        y = ymin + y * (ymax - ymin) / fs;
+        // Calculate X, Y ADC values
         int rplate = 4096;
-        int rtouch = 128;
-        int rxp = x * rplate / vcc;
-        int rxm = rplate - rxp;
-        int ryp = y * rplate / vcc;
-        int rym = rplate - ryp;
+        int rxp = x * rplate / fs;
+        int ryp = y * rplate / fs;
         int max = 4095;
         s->x = rxp * max / rplate;
         s->y = ryp * max / rplate;
-        int rz = rxp + rtouch + rym;
-        s->z[0] = rxp * max / rz;
-        s->z[1] = (rxp + rtouch) * max / rz;
-        rz = ryp + rtouch + rxm;
-        s->z[2] = ryp * max / rz;
-        s->z[3] = (ryp + rtouch) * max / rz;
+        // Pressure unsupported
+        s->z[0] = 100;
+        s->z[1] = 100;
+        s->z[2] = 100;
+        s->z[3] = 100;
     }
     if (update)
         ingenic_adc_ts_timer(s);
