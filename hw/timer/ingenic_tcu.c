@@ -233,13 +233,13 @@ static void ingenic_tcu_timer_write(IngenicTcuTimer *timer, hwaddr addr, uint64_
     uint32_t diff = 0;
     switch (addr & 0x0f) {
     case REG_TDFR0 & 0x0f:
-        timer->tmr.top = data & 0xff;
+        timer->tmr.top = data & 0xffff;
         break;
     case REG_TDHR0 & 0x0f:
-        timer->tmr.comp = data;
+        timer->tmr.comp = data & 0xffff;
         break;
     case REG_TCNT0 & 0x0f:
-        timer->tmr.cnt = data;
+        timer->tmr.cnt = data & 0xffff;
         break;
     case REG_TCSR0 & 0x0f:
         diff = (timer->tcsr ^ data) & 0x3f;
