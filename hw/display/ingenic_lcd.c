@@ -208,12 +208,12 @@ static void ingenic_lcd_update_display(void *opaque)
             s->desc[idesc].lcddessize = desc[7];
         }
 
-        if (s->desc[idesc].lcdcmd & 0xf0000000) {
-            qemu_log_mask(LOG_UNIMP, "%s: Unsupported CMD 0x%"PRIx32"\n",
-                          __func__, s->desc[idesc].lcdcmd);
-            qmp_stop(NULL);
-            continue;
-        } else if (s->lcdcfg & BIT(28)) {
+        trace_ingenic_lcd_desc(s->desc[idesc].lcdda,   s->desc[idesc].lcdsa,
+                               s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
+                               s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
+                               s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
+
+        if (s->lcdcfg & BIT(28)) {
             uint32_t xres = s->desc[idesc].lcddessize & 0xffff;
             uint32_t yres = s->desc[idesc].lcddessize >> 16;
             if (xres != s->xres || yres != s->yres) {
@@ -225,14 +225,22 @@ static void ingenic_lcd_update_display(void *opaque)
             }
         }
 
-        trace_ingenic_lcd_desc(s->desc[idesc].lcdda,   s->desc[idesc].lcdsa,
-                               s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
-                               s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
-                               s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
+        if (s->desc[0].lcdcmd & BIT(31)) {
+            // SOFINT Start of frame interrupt
+            s->lcdstate |= BIT(4);
+            ingenic_lcd_update_irq(s);
+        }
 
         framebuffer_update_memory_section(&s->fbsection, get_system_memory(),
                                           s->desc[idesc].lcdsa,
                                           s->yres, src_width);
+
+        if (s->desc[0].lcdcmd & BIT(30)) {
+            // EOFINT End of frame interrupt
+            s->lcdstate |= BIT(5);
+            ingenic_lcd_update_irq(s);
+        }
+
         break;
     }
 
@@ -263,10 +271,6 @@ static void ingenic_lcd_schedule(IngenicLcd *s)
     s->timer_ns = next;
     trace_ingenic_lcd_schedule(next);
     timer_mod_anticipate_ns(&s->timer, next);
-
-    // Update frame start & end flags
-    s->lcdstate |= BIT(4) | BIT(5);
-    ingenic_lcd_update_irq(s);
 
     graphic_hw_update(s->con);
 }
