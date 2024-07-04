@@ -112,14 +112,8 @@ ingenic_nand_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_nand_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_nand_cmd(uint32_t bank, const char *cmd, uint32_t value) "bank%u %s: 0x%x"
 
-ingenic_nand_ecc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-ingenic_nand_ecc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-
 # ingenic_emc_sdram.c
-ingenic_sdram_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-ingenic_sdram_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_sdram_dmr_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
-ingenic_sdram_enable(int bank) "bank=%u"
 
 # ingenic_bch.c
 ingenic_bch_write_data(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
