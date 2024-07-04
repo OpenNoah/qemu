@@ -262,6 +262,7 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
                 nand->page_ofs++;
             }
         }
+        ingenic_emc_nand_ecc_data(nand->emc, data, size);
     }
 }
 
@@ -376,6 +377,7 @@ OBJECT_DEFINE_TYPE(IngenicEmcNand, ingenic_emc_nand, INGENIC_EMC_NAND, DEVICE)
 void ingenic_emc_nand_ecc_reset(IngenicEmc *emc, ResetType type)
 {
     IngenicEmcNandEcc *s = &emc->nand_ecc;
+    s->data_count = 0;
     s->reg.nfeccr = 0;
     s->reg.nfecc = 0x66ccff;
     s->reg.nfpar[0] = 0xdeadbeef;
@@ -394,9 +396,7 @@ uint64_t ingenic_emc_nand_ecc_read(IngenicEmc *emc, hwaddr addr, unsigned size)
     case REG_NFECC:
         value = s->reg.nfecc;
         break;
-    case REG_NFPAR0:
-    case REG_NFPAR1:
-    case REG_NFPAR2:
+    case REG_NFPAR0 ... REG_NFPAR2:
         value = s->reg.nfpar[(addr - REG_NFPAR0) / 4];
         break;
     case REG_NFINTS:
@@ -430,20 +430,8 @@ void ingenic_emc_nand_ecc_write(IngenicEmc *emc, hwaddr addr, uint64_t value, un
             // Parity ready, decoding done
             s->reg.nfints |= BIT(4) | BIT(3);
         }
-        if (value & BIT(3)) {
-            qemu_log_mask(LOG_UNIMP, "%s: TODO Encoding\n", __func__);
-            qmp_stop(NULL);
-        }
         break;
-    case REG_NFPAR0 + 0:
-    case REG_NFPAR0 + 1:
-    case REG_NFPAR0 + 2:
-    case REG_NFPAR0 + 3:
-    case REG_NFPAR1 + 0:
-    case REG_NFPAR1 + 1:
-    case REG_NFPAR1 + 2:
-    case REG_NFPAR1 + 3:
-    case REG_NFPAR2:
+    case REG_NFPAR0 ... REG_NFPAR2:
         // TODO ECC
         break;
     case REG_NFINTS:
@@ -453,5 +441,20 @@ void ingenic_emc_nand_ecc_write(IngenicEmc *emc, hwaddr addr, uint64_t value, un
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
                       __func__, addr, value);
         qmp_stop(NULL);
+    }
+}
+
+void ingenic_emc_nand_ecc_data(IngenicEmc *emc, uint64_t value, unsigned size)
+{
+    IngenicEmcNandEcc *s = &emc->nand_ecc;
+    if (!(s->reg.nfeccr & BIT(3)))
+        return;
+    // In encoding mode
+    // TODO Check hamming vs. RS encoding
+    if (s->data_count < 512)
+        s->data_count += size;
+    if (s->data_count >= 512) {
+        // Encoding done
+        s->reg.nfints |= BIT(2);
     }
 }

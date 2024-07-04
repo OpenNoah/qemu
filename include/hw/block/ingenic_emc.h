@@ -67,6 +67,7 @@ typedef struct IngenicEmcNandClass
 // EMC NAND ECC module
 
 typedef struct IngenicEmcNandEcc {
+    uint32_t data_count;
     struct {
         uint8_t  nfeccr;
         uint32_t nfecc;
@@ -80,6 +81,7 @@ typedef struct IngenicEmcNandEcc {
 void ingenic_emc_nand_ecc_reset(IngenicEmc *emc, ResetType type);
 uint64_t ingenic_emc_nand_ecc_read(IngenicEmc *emc, hwaddr addr, unsigned size);
 void ingenic_emc_nand_ecc_write(IngenicEmc *emc, hwaddr addr, uint64_t value, unsigned size);
+void ingenic_emc_nand_ecc_data(IngenicEmc *emc, uint64_t value, unsigned size);
 
 // EMC SDRAM instances
 
