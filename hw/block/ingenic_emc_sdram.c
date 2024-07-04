@@ -33,113 +33,17 @@
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
 
+#define REG_DMCR    0x80
+#define REG_RTCSR   0x84
+#define REG_RTCNT   0x88
+#define REG_RTCOR   0x8c
+#define REG_DMAR1   0x90
+#define REG_DMAR2   0x94
+
 void qmp_stop(Error **errp);
-
-static uint64_t ingenic_emc_sdram_read(void *opaque, hwaddr addr, unsigned size)
-{
-    IngenicEmcSdram *s = INGENIC_EMC_SDRAM(opaque);
-    uint64_t data = 0;
-    switch (addr) {
-    case 0x00:
-        return s->dmcr;
-        break;
-    case 0x04:
-        return s->rtcsr | BIT(7);
-        break;
-    case 0x08:
-        return s->rtcnt;
-        break;
-    case 0x0c:
-        return s->rtcor;
-        break;
-    case 0x10:
-        return s->dmar[0];
-        break;
-    case 0x14:
-        return s->dmar[1];
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
-        qmp_stop(NULL);
-    }
-    trace_ingenic_sdram_read(addr, data);
-    return data;
-}
-
-static void ingenic_emc_sdram_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
-{
-    IngenicEmcSdram *s = INGENIC_EMC_SDRAM(opaque);
-    trace_ingenic_sdram_write(addr, data);
-    switch (addr) {
-    case 0x00:
-        s->dmcr = data & 0x9fbfff7f;
-        break;
-    case 0x04:
-        s->rtcsr = data & 0x0007;
-        break;
-    case 0x08:
-        s->rtcnt = data & 0xffff;
-        break;
-    case 0x0c:
-        s->rtcor = data & 0xffff;
-        break;
-    case 0x10:
-        s->dmar[0] = data & 0xffff;
-        memory_region_set_address(&s->mr[0], (s->dmar[0] & 0xff00) << 16);
-        break;
-    case 0x14:
-        s->dmar[1] = data & 0xffff;
-        memory_region_set_address(&s->mr[1], (s->dmar[1] & 0xff00) << 16);
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
-                      __func__, addr, data);
-        qmp_stop(NULL);
-    }
-}
-
-static MemoryRegionOps sdram_ops = {
-    .read = ingenic_emc_sdram_read,
-    .write = ingenic_emc_sdram_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static void ingenic_emc_sdram_dmr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
-{
-    IngenicEmcSdram *s = INGENIC_EMC_SDRAM(opaque);
-    trace_ingenic_sdram_dmr_write(addr, data);
-    if (s->dmcr & BIT(23)) {
-        // SDMR write, enable SDRAM banks
-        uint32_t bank = (s->dmcr >> 16) & 1;
-        trace_ingenic_sdram_enable(bank);
-        if (!s->size[bank]) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %"PRIu32" no media\n", __func__, bank);
-            return;
-        }
-        memory_region_set_enabled(&s->mr[bank], true);
-    }
-}
-
-static MemoryRegionOps sdram_dmr_ops = {
-    .write = ingenic_emc_sdram_dmr_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static void ingenic_emc_sdram_init(Object *obj)
 {
-    IngenicEmcSdram *s = INGENIC_EMC_SDRAM(obj);
-    MemoryRegion *sys_mem = get_system_memory();
-
-    // Aliased SDRAM region at 0
-    memory_region_init_alias(&s->origin_alias_mr, obj, "emc.sdram.alias",
-                             sys_mem, 0x20000000, 0x08000000);
-    memory_region_add_subregion(sys_mem, 0x00000000, &s->origin_alias_mr);
-
-    // EMC registers
-    memory_region_init_io(&s->emc_mr, obj, &sdram_ops, s, "emc.sdram", 0x20);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->emc_mr);
-    memory_region_init_io(&s->dmr_mr, obj, &sdram_dmr_ops, s, "emc.sdram.dmr", 0x8000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->dmr_mr);
 }
 
 static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
@@ -148,38 +52,15 @@ static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
     IngenicEmcSdram *s = INGENIC_EMC_SDRAM(obj);
     MemoryRegion *sys_mem = get_system_memory();
 
-    // Add SDRAM banks, now that size is known
-    for (int bank = 0; bank < 2; bank++) {
-        // TODO set as reset value
-        s->dmar[bank] = 0x20f8 + (0x0800 * bank);
-        if (!s->size[bank])
-            continue;
-
-        // SDRAM bank data section (128MiB) container
-        char name[] = "emc.sdram.bank0";
-        name[14] = '0' + bank;
-        uint32_t bank_size = 128 * 1024 * 1024;
-        memory_region_init(&s->mr[bank], obj, name, bank_size);
-        // Disabled for now
-        memory_region_set_enabled(&s->mr[bank], false);
-        memory_region_add_subregion(sys_mem, (s->dmar[bank] & 0xff00) << 16,
-                                    &s->mr[bank]);
-
-        // Allocate main and alias sections
-        uint32_t num_aliases = bank_size / s->size[bank];
-        s->alias_mr[bank] = g_new(MemoryRegion, num_aliases);
-
-        // Main SDRAM data section at alias[0]
-        memory_region_init_ram(&s->alias_mr[bank][0], obj, "data", s->size[bank], &error_fatal);
-        memory_region_add_subregion(&s->mr[bank], 0, &s->alias_mr[bank][0]);
-
-        // Add aliases to fill the entire SDRAM bank region
-        for (int i = 1; i < num_aliases; i++) {
-            memory_region_init_alias(&s->alias_mr[bank][i], obj, "alias",
-                                     &s->alias_mr[bank][0], 0, s->size[bank]);
-            memory_region_add_subregion(&s->mr[bank], s->size[bank], &s->alias_mr[bank][i]);
-        }
-    }
+    // SDRAM bank data section container
+    memory_region_init_ram(&s->mr, obj, "emc.sdram", s->size, &error_fatal);
+    // Disabled for now
+    memory_region_set_enabled(&s->mr, false);
+    memory_region_add_subregion(sys_mem, 0, &s->mr);
+    // No alias sections yet
+    s->alias_mr = 0;
+    // Register on EMC main controller
+    ingenic_emc_register_sdram(s, s->cs);
 }
 
 static void ingenic_emc_sdram_finalize(Object *obj)
@@ -187,8 +68,8 @@ static void ingenic_emc_sdram_finalize(Object *obj)
 }
 
 static Property ingenic_emc_sdram_properties[] = {
-    DEFINE_PROP_UINT32("bank0-size", IngenicEmcSdram, size[0], 0),
-    DEFINE_PROP_UINT32("bank1-size", IngenicEmcSdram, size[1], 0),
+    DEFINE_PROP_UINT32("cs", IngenicEmcSdram, cs, 0),
+    DEFINE_PROP_UINT32("size", IngenicEmcSdram, size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -199,4 +80,115 @@ static void ingenic_emc_sdram_class_init(ObjectClass *class, void *data)
     dc->realize = ingenic_emc_sdram_realize;
 }
 
-OBJECT_DEFINE_TYPE(IngenicEmcSdram, ingenic_emc_sdram, INGENIC_EMC_SDRAM, SYS_BUS_DEVICE)
+OBJECT_DEFINE_TYPE(IngenicEmcSdram, ingenic_emc_sdram, INGENIC_EMC_SDRAM, DEVICE)
+
+
+// EMC SDRAM configuration space
+
+uint64_t ingenic_emc_sdram_read(IngenicEmc *emc, hwaddr addr, unsigned size)
+{
+    IngenicEmcSdramCfg *s = &emc->sdram_cfg;
+    uint64_t data = 0;
+    switch (addr) {
+    case REG_DMCR:
+        return s->reg.dmcr;
+        break;
+    case REG_RTCSR:
+        return s->reg.rtcsr | BIT(7);
+        break;
+    case REG_RTCNT:
+        return s->reg.rtcnt;
+        break;
+    case REG_RTCOR:
+        return s->reg.rtcor;
+        break;
+    case REG_DMAR1:
+        return s->reg.dmar[0];
+        break;
+    case REG_DMAR2:
+        return s->reg.dmar[1];
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
+        qmp_stop(NULL);
+    }
+    return data;
+}
+
+static void ingenic_emc_sdram_write_dmar(IngenicEmc *emc, int bank, uint16_t value)
+{
+    IngenicEmcSdramCfg *s = &emc->sdram_cfg;
+    uint16_t dmar = value & 0xffff;
+    s->reg.dmar[bank] = dmar;
+
+    IngenicEmcSdram *sdram = emc->sdram[bank];
+    if (!sdram)
+        return;
+
+    // Update main data region base address
+    uint32_t ofs = (dmar & 0xff00) << 16;
+    memory_region_set_address(&sdram->mr, ofs);
+    memory_region_set_enabled(&sdram->mr, true);
+
+    // Delete existing alias regions
+    MemoryRegion *sys_mem = get_system_memory();
+    if (sdram->alias_mr) {
+        // It is an exception that alias regions may be unparented at any time
+        for (int i = 0; i < sdram->num_aliases; i++) {
+            memory_region_del_subregion(sys_mem, &sdram->alias_mr[i]);
+            object_unparent(OBJECT(&sdram->alias_mr[i]));
+        }
+        g_free(sdram->alias_mr);
+    }
+    // Update alias regions to fill the entire SDRAM bank size
+    // Holes not handled
+    sdram->num_aliases = (((~dmar & 0xff) + 1) << 24) / sdram->size - 1;
+    sdram->alias_mr = g_new(MemoryRegion, sdram->num_aliases);
+    for (int i = 0; i < sdram->num_aliases; i++) {
+        ofs += sdram->size;
+        memory_region_init_alias(&sdram->alias_mr[i], OBJECT(sdram), "emc.sdram.alias",
+                                 &sdram->mr, 0, sdram->size);
+        memory_region_add_subregion(sys_mem, ofs, &sdram->alias_mr[i]);
+    }
+}
+
+void ingenic_emc_sdram_write(IngenicEmc *emc, hwaddr addr, uint64_t data, unsigned size)
+{
+    if (addr >= 0x1000) {
+        // Mode register write
+        trace_ingenic_sdram_dmr_write(addr, data);
+        return;
+    }
+
+    IngenicEmcSdramCfg *s = &emc->sdram_cfg;
+    switch (addr) {
+    case REG_DMCR:
+        s->reg.dmcr = data & 0x9fbfff7f;
+        break;
+    case REG_RTCSR:
+        s->reg.rtcsr = data & 0x0007;
+        break;
+    case REG_RTCNT:
+        s->reg.rtcnt = data & 0xffff;
+        break;
+    case REG_RTCOR:
+        s->reg.rtcor = data & 0xffff;
+        break;
+    case REG_DMAR1:
+    case REG_DMAR2:
+        ingenic_emc_sdram_write_dmar(emc, (addr - REG_DMAR1) / 4, data);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
+                      __func__, addr, data);
+        qmp_stop(NULL);
+    }
+}
+
+void ingenic_emc_sdram_reset(IngenicEmc *emc, ResetType type)
+{
+    IngenicEmcSdramCfg *s = &emc->sdram_cfg;
+    s->reg.dmcr = 0;
+    ingenic_emc_sdram_write_dmar(emc, 0, 0x20f8);
+    ingenic_emc_sdram_write_dmar(emc, 1, 0x28f8);
+}

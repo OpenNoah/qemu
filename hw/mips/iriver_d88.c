@@ -42,8 +42,9 @@
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "qemu/log.h"
-#include "hw/mips/ingenic_jz4755.h"
 
+#include "hw/mips/ingenic_jz4755.h"
+#include "hw/block/ingenic_emc.h"
 #include "hw/audio/ar1010.h"
 #include "hw/audio/wm8731.h"
 #include "hw/input/stmpe2403.h"
@@ -107,6 +108,21 @@ static void mips_iriver_d88_init(MachineState *machine)
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;
     }
+
+    // Register SDRAM at DCS 0
+    IngenicEmcSdram *sdram = INGENIC_EMC_SDRAM(qdev_new(TYPE_INGENIC_EMC_SDRAM));
+    object_property_set_uint(OBJECT(sdram), "cs", 0, &error_fatal);
+    object_property_set_uint(OBJECT(sdram), "size", 0x04000000, &error_fatal);
+    qdev_realize_and_unref(DEVICE(sdram), NULL, &error_fatal);
+
+    // Register NAND at CS 1
+    IngenicEmcNand *nand = INGENIC_EMC_NAND(qdev_new(TYPE_INGENIC_EMC_NAND));
+    object_property_set_uint(OBJECT(nand), "cs",          1,              &error_fatal);
+    object_property_set_str( OBJECT(nand), "nand-id",     "ecd7d5293841", &error_fatal);
+    object_property_set_uint(OBJECT(nand), "block-pages", 128,            &error_fatal);
+    object_property_set_uint(OBJECT(nand), "page-size",   4096,           &error_fatal);
+    object_property_set_uint(OBJECT(nand), "oob-size",    256,            &error_fatal);
+    qdev_realize_and_unref(DEVICE(nand), NULL, &error_fatal);
 
     // Other chips on I2C bus
     i2c_slave_create_simple(soc->i2c, TYPE_AR1010, AR1010_I2C_ADDR);
