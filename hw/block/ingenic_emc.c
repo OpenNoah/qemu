@@ -91,13 +91,6 @@ static void ingenic_emc_reset(Object *obj, ResetType type)
 
 static uint64_t ingenic_emc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    if (unlikely(size != 4 || (addr & 3) != 0)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "EMC read unaligned @ " HWADDR_FMT_plx "/%"PRIx32"\n",
-                      addr, (uint32_t)size);
-        qmp_stop(NULL);
-        return 0;
-    }
-
     IngenicEmc *s = INGENIC_EMC(opaque);
     uint64_t data = 0;
     if (addr < 0x80) {
