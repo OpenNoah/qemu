@@ -38,6 +38,8 @@ enum ingenic_dmac_ch_state {
     IngenicDmacChIdle, IngenicDmacChDesc, IngenicDmacChTxfr,
 };
 
+typedef struct IngenicMsc IngenicMsc;
+
 typedef struct IngenicDmac
 {
     SysBusDevice parent_obj;
@@ -50,6 +52,11 @@ typedef struct IngenicDmac
             enum ingenic_dmac_ch_state state;
         } ch[INGENIC_DMAC_NUM_CH];
     } dma[INGENIC_DMAC_NUM_DMAC];
+
+    IngenicMsc *msc;
+
+    // Properties
+    uint32_t model;
 
     // Registers
     struct {
