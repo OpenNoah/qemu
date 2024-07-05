@@ -27,6 +27,7 @@
 
 #include "qom/object.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "hw/sd/sd.h"
 
 #define TYPE_INGENIC_MSC "ingenic-msc"
@@ -36,18 +37,28 @@ OBJECT_DECLARE_TYPE(IngenicMsc, IngenicMscClass, INGENIC_MSC)
 
 typedef struct IngenicMsc
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
     SDBus sdbus;
+    qemu_irq irq;
+    qemu_irq gpio_cd;
+
+    // Properties
+    BlockBackend *blk;
+    uint16_t resp[8];
+    uint8_t  resp_offset;
+    uint8_t  data_fifo[4096];
+    uint32_t data_offset;
+    uint32_t data_size;
 
     // Registers
     struct {
         uint32_t stat;      // 0x04
         uint8_t  clkrt;     // 0x08
         uint32_t cmdat;     // 0x0c
+        uint16_t blklen;    // 0x18
+        uint16_t nob;       // 0x1c
+        uint16_t snob;      // 0x20
         uint16_t imask;     // 0x24
         uint16_t ireg;      // 0x28
         uint8_t  cmd;       // 0x2c
