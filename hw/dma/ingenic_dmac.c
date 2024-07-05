@@ -25,13 +25,17 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "migration/vmstate.h"
 #include "qemu/main-loop.h"
+#include "migration/vmstate.h"
 #include "block/aio.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/ssi/ingenic_msc.h"
 #include "hw/dma/ingenic_dmac.h"
 #include "trace.h"
+
+#define MSC_RX_PASS_THROUGH 1
 
 #define REG_CH_DSA  0x00
 #define REG_CH_DTA  0x04
@@ -52,8 +56,35 @@
 #define REQ_BCH_ENC 2
 #define REQ_BCH_DEC 3
 #define REQ_AUTO    8
+#define REQ_MSC0_TX 26
+#define REQ_MSC0_RX 27
 
 void qmp_stop(Error **errp);
+
+static void ingenic_dmac_reset(Object *obj, ResetType type)
+{
+    IngenicDmac *s = INGENIC_DMAC(obj);
+    for (int dmac = 0; dmac < INGENIC_DMAC_NUM_DMAC; dmac++) {
+        for (int ch = 0; ch < INGENIC_DMAC_NUM_CH; ch++) {
+            s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+            s->reg[dmac].ch[ch].dsa = 0;
+            s->reg[dmac].ch[ch].dta = 0;
+            s->reg[dmac].ch[ch].dtc = 0;
+            s->reg[dmac].ch[ch].drt = 0;
+            s->reg[dmac].ch[ch].dcs = 0;
+            s->reg[dmac].ch[ch].dcm = 0;
+            s->reg[dmac].ch[ch].dda = 0;
+            s->reg[dmac].ch[ch].dsd = 0;
+        }
+        s->reg[dmac].dmac  = 0;
+        s->reg[dmac].dirqp = 0;
+        s->reg[dmac].ddr   = 0;
+        s->reg[dmac].dcke  = 0;
+    }
+
+    // Find MSC
+    s->msc = INGENIC_MSC(object_resolve_path_type("", TYPE_INGENIC_MSC, NULL));
+}
 
 static void ingenic_dmac_update_irq(IngenicDmac *s, int dmac, int ch)
 {
@@ -117,7 +148,7 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     static const uint8_t sdp_map[4] = {4, 1, 2, 0};
     uint8_t sp_b = sdp_map[sp];
     uint8_t dp_b = sdp_map[dp];
-    static const uint8_t tsz_map[8] = {4, 1, 2, 2, 4, 0, 0, 0};
+    static const uint8_t tsz_map[8] = {4, 1, 2, 16, 32, 0, 0, 0};
     uint8_t tsz_b = tsz_map[tsz];
     if (!sp_b || !dp_b || !tsz_b) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: %u.%u Invalid size %u, %u, %u\n",
@@ -129,6 +160,7 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     uint32_t dsa = s->reg[dmac].ch[ch].dsa;
     uint32_t dta = s->reg[dmac].ch[ch].dta;
     uint32_t size = s->reg[dmac].ch[ch].dtc * tsz_b;
+    uint32_t avail = size;
 
     // Transfers
     uint32_t src     = dsa;
@@ -139,8 +171,17 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     bool     dst_inc = dai;
     uint8_t req = s->reg[dmac].ch[ch].drt;
     switch (req) {
-    case REQ_NAND:
     case REQ_AUTO:
+    case REQ_NAND:
+        break;
+    case REQ_MSC0_RX:
+        if (!s->msc) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: MSC controller not found\n", __func__);
+            qmp_stop(NULL);
+            avail = 0;
+        } else {
+            avail = MIN(size, ingenic_msc_available_rx(s->msc));
+        }
         break;
     case REQ_BCH_DEC:
         // DMA read data from memory pointed by DSAR0 and write to BCH data register BHDR
@@ -156,10 +197,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     }
 
     // Continuous transfer, no need to wait
-    trace_ingenic_dmac_transfer(dmac, ch, dst, src, size);
-    while (size) {
+    trace_ingenic_dmac_transfer(dmac, ch, dst, src, avail);
+    while (avail) {
         uint8_t buf[4096];
-        uint32_t len = MIN(sizeof(buf), size);
+        uint32_t len = MIN(sizeof(buf), avail);
+        avail -= len;
         size -= len;
         // Clear last u32 buffer word
         //*((uint32_t *)&buf[0] + (len % sizeof(buf)) / 4) = 0;
@@ -167,6 +209,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         if (src_inc) {
             cpu_physical_memory_read(src, &buf[0], len);
             src += len;
+#if MSC_RX_PASS_THROUGH
+        } else if (req == REQ_MSC0_RX && src == 0x10021038) {
+            // Fast pass-through for MSC RX
+            len = ingenic_msc_dma_rx(s->msc, buf, len);
+#endif
         } else {
             uint8_t *pbuf = &buf[0];
             for (int32_t i = len; i > 0; i -= src_b) {
@@ -189,15 +236,16 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
 
     // Update registers
     switch (req) {
-    case REQ_NAND:
     case REQ_AUTO:
+    case REQ_NAND:
+    case REQ_MSC0_RX:
         s->reg[dmac].ch[ch].dtc = size / tsz_b;
-        s->reg[dmac].ch[ch].dsa = src;
-        s->reg[dmac].ch[ch].dta = dst;
+        //s->reg[dmac].ch[ch].dsa = src;
+        //s->reg[dmac].ch[ch].dta = dst;
         break;
     case REQ_BCH_DEC:
         s->reg[dmac].ch[ch].dtc = size / tsz_b;
-        s->reg[dmac].ch[ch].dsa = src;
+        //s->reg[dmac].ch[ch].dsa = src;
         if (blast) {
             // after BCH decoding finishes, if there is error in the data block
             // DMA will write BHINT, BHERR0~3 (8-bit BCH) or BHERR0~1 (4-bit BCH)
@@ -222,7 +270,7 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
             // and then DMA clear BHINT and set BCH reset to BCH.
             uint32_t bhcr_reset = BIT(1);
             cpu_physical_memory_write(0x130d0004, &bhcr_reset, 4);
-            s->reg[dmac].ch[ch].dta = dta;
+            //s->reg[dmac].ch[ch].dta = dta;
         }
         break;
     default:
@@ -328,10 +376,15 @@ static void ingenic_dmac_parse_descriptor(IngenicDmac *s, int dmac, int ch, uint
 
     // Update interrupts
     ingenic_dmac_update_irq(s, dmac, ch);
+}
 
+static void ingenic_dmac_wait_req(IngenicDmac *s, int dmac, int ch)
+{
+    bool v = !(s->reg[dmac].ch[ch].dcs & BIT(6));
     uint8_t req = s->reg[dmac].ch[ch].drt;
     switch (req) {
     case REQ_NAND:
+    case REQ_MSC0_RX:
         // Wait for request trigger
         s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
         break;
@@ -357,15 +410,13 @@ static void ingenic_dmac_trigger_bh(void *opaque)
             if (s->dma[dmac].ch[ch].state == IngenicDmacChDesc) {
                 // Fetch descriptor
                 uint32_t dcs = s->reg[dmac].ch[ch].dcs;
-                if (dcs & BIT(31)) {
-                    // No descriptor transfer
-                    s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
-                } else {
+                if (!(dcs & BIT(31))) {
                     // Fetch descriptor
                     int nwords = dcs & BIT(30) ? 8 : 4;
                     uint32_t addr = s->reg[dmac].ch[ch].dda;
                     ingenic_dmac_parse_descriptor(s, dmac, ch, addr, nwords);
                 }
+                ingenic_dmac_wait_req(s, dmac, ch);
             }
             if (s->dma[dmac].ch[ch].state == IngenicDmacChTxfr)
                 ingenic_dmac_channel_trigger(s, dmac, ch);
@@ -388,8 +439,9 @@ static void ingenic_dmac_channel_req_detect(IngenicDmac *s, int dmac, int ch, in
 {
     switch (req) {
     case REQ_NAND:
+    case REQ_MSC0_RX:
         if (level) {
-            // NAND trigger on rising edge
+            // Trigger on rising edge
             s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
             qemu_bh_schedule(s->trigger_bh);
         }
@@ -410,28 +462,6 @@ static void ingenic_dmac_req(void *opaque, int req, int level)
             if (ingenic_dmac_channel_is_enabled(s, dmac, ch))
                 if (s->reg[dmac].ch[ch].drt == req)
                     ingenic_dmac_channel_req_detect(s, dmac, ch, req, level);
-}
-
-static void ingenic_dmac_reset(Object *obj, ResetType type)
-{
-    IngenicDmac *s = INGENIC_DMAC(obj);
-    for (int dmac = 0; dmac < INGENIC_DMAC_NUM_DMAC; dmac++) {
-        for (int ch = 0; ch < INGENIC_DMAC_NUM_CH; ch++) {
-            s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
-            s->reg[dmac].ch[ch].dsa = 0;
-            s->reg[dmac].ch[ch].dta = 0;
-            s->reg[dmac].ch[ch].dtc = 0;
-            s->reg[dmac].ch[ch].drt = 0;
-            s->reg[dmac].ch[ch].dcs = 0;
-            s->reg[dmac].ch[ch].dcm = 0;
-            s->reg[dmac].ch[ch].dda = 0;
-            s->reg[dmac].ch[ch].dsd = 0;
-        }
-        s->reg[dmac].dmac  = 0;
-        s->reg[dmac].dirqp = 0;
-        s->reg[dmac].ddr   = 0;
-        s->reg[dmac].dcke  = 0;
-    }
 }
 
 static uint64_t ingenic_dmac_read(void *opaque, hwaddr addr, unsigned size)
@@ -632,8 +662,16 @@ static void ingenic_dmac_finalize(Object *obj)
 {
 }
 
+static Property ingenic_dmac_properties[] = {
+    DEFINE_PROP_UINT32("model", IngenicDmac, model, 0x4755),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_dmac_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+    device_class_set_props(dc, ingenic_dmac_properties);
+
     IngenicDmacClass *bch_class = INGENIC_DMAC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
