@@ -106,6 +106,7 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
 
     // 0x13020000 Register DMAC on AHB0
     IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
+    object_property_set_uint(OBJECT(dmac), "model", 0x4740, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb, 0x00020000, dmac_mr);
@@ -175,6 +176,7 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     // 0x10021000 Register MSC on APB
     IngenicMsc *msc = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
     soc->msc = msc;
+    object_property_set_uint(OBJECT(msc), "model", 0x4740, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(msc), &error_fatal);
     MemoryRegion *msc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc), 0);
     memory_region_add_subregion(apb, 0x00021000, msc_mr);
@@ -252,7 +254,7 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         // 17 CIM
         // 16 SSI
         // 15 RTC
-        // 14 MSC
+        {DEVICE(msc),  "irq-out",  0, 14},
         {DEVICE(adc),  "irq-out",  0, 12},
         // 3 UHC
         // 2 EMC
@@ -265,6 +267,12 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
                                     irqs[i].dev_irq_name, irqs[i].dev_irq, irq);
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
+
+    // Connect DMA requests
+    qdev_connect_gpio_out_named(DEVICE(msc), "dma-tx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 26));
+    qdev_connect_gpio_out_named(DEVICE(msc), "dma-rx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 27));
 
 #if 0
     // Connect DMA requests
