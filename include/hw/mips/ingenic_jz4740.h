@@ -30,11 +30,13 @@
 #include "qemu/typedefs.h"
 #include "target/mips/cpu.h"
 #include "hw/gpio/ingenic_gpio.h"
+#include "hw/ssi/ingenic_msc.h"
 #include "hw/i2c/i2c.h"
 
 typedef struct IngenicJZ4740 {
     MIPSCPU *cpu;
     IngenicGpio *gpio[6];
+    IngenicMsc *msc;
     I2CBus *i2c;
 } IngenicJZ4740;
 
