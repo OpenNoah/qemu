@@ -33,23 +33,25 @@
 #define TYPE_INGENIC_MSC "ingenic-msc"
 OBJECT_DECLARE_TYPE(IngenicMsc, IngenicMscClass, INGENIC_MSC)
 
-//#define TYPE_INGENIC_MSC_BUS "ingenic-msc-bus"
-
 typedef struct IngenicMsc
 {
     SysBusDevice parent_obj;
     MemoryRegion mr;
     SDBus sdbus;
-    qemu_irq irq;
     qemu_irq gpio_cd;
+    qemu_irq dma_tx;
+    qemu_irq dma_rx;
+    qemu_irq irq;
 
     // Properties
     BlockBackend *blk;
+    uint32_t model;
     uint16_t resp[8];
     uint8_t  resp_offset;
     uint8_t  data_fifo[4096];
     uint32_t data_offset;
     uint32_t data_size;
+    uint16_t prev_irq;
 
     // Registers
     struct {
@@ -72,5 +74,12 @@ typedef struct IngenicMscClass
     SysBusDeviceClass parent_class;
     ResettablePhases parent_phases;
 } IngenicMscClass;
+
+static inline uint32_t ingenic_msc_available_rx(IngenicMsc *s)
+{
+    return s->data_size - s->data_offset;
+}
+
+uint32_t ingenic_msc_dma_rx(IngenicMsc *s, uint8_t *buf, uint32_t len);
 
 #endif // INGENIC_MSC_H

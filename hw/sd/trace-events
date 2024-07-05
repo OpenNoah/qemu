@@ -78,3 +78,5 @@ ingenic_msc_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_msc_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_msc_cmd(uint8_t cmd, uint8_t resp, uint32_t arg) "CMD%u R%u arg 0x%08x"
 ingenic_msc_fifo_offset(uint64_t ofs, uint64_t size) "ofs=%"PRIu64" size=%"PRIu64
+ingenic_msc_irq(uint32_t pending) "pending=0x%x"
+ingenic_msc_dma_rx(uint32_t len) "len=%u"
