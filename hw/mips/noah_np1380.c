@@ -117,27 +117,17 @@ static void mips_noah_np1380_init(MachineState *machine)
     object_property_set_uint(OBJECT(nand), "oob-size",    128,          &error_fatal);
     qdev_realize_and_unref(DEVICE(nand), NULL, &error_fatal);
 
-#if 0
     // Connect GPIOs
-    // PE0: Lid detect, 0: closed
-    qemu_irq lid_det = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 0);
-    qemu_irq_raise(lid_det);
-    // PE4: MSC1 CD, 0: inserted
-    qemu_irq msc1_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 4);
-    qemu_irq_raise(msc1_cd);
-    // PE6: UDC CD, active high
-    qemu_irq udc_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 6);
-    qemu_irq_lower(udc_cd);
-    // PE9: Keyboard IRQ, falling edge active
-    qemu_irq stmpe2403_irq = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 9);
-    qdev_connect_gpio_out_named(DEVICE(stmpe2403), "irq-out", 0, stmpe2403_irq);
-    // PE10: Headphone, 0: inserted
-    qemu_irq hp_cd = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 10);
-    qemu_irq_raise(hp_cd);
-    // PE30: POWER key, active low
-    qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30);
+    // PB27: MSC CD, 1: inserted
+    qdev_connect_gpio_out_named(DEVICE(soc->msc), "io-cd", 0,
+        qdev_get_gpio_in_named(DEVICE(soc->gpio['B' - 'A']), "gpio-in", 27));
+
+    // PC23: LCD select, 0: KD035G6, 1: PT035TN01_V5
+    qemu_irq lcd_sel = qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 23);
+    qemu_irq_raise(lcd_sel);
+    // PD29: POWER key, 0: pressed
+    qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 29);
     qemu_irq_raise(power_key);
-#endif
 }
 
 static void mips_noah_np1380_machine_init(MachineClass *mc)
