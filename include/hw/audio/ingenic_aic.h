@@ -44,7 +44,10 @@ typedef struct IngenicAic
         uint16_t aicfr;
         uint32_t aiccr;
         uint16_t i2scr;
+        uint32_t aicsr;
         uint8_t  i2sdiv;
+        uint32_t cdccr1;
+        uint32_t cdccr2;
     } reg;
 } IngenicAic;
 
