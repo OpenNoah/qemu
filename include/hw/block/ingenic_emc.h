@@ -55,7 +55,7 @@ typedef struct IngenicEmcNand {
     uint64_t addr;
 
     // Read/write buffers
-    uint8_t *page_buf;
+    uint8_t *buf;
     uint32_t page_ofs;
 } IngenicEmcNand;
 
