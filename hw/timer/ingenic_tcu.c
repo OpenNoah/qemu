@@ -281,6 +281,12 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
         case REG_TER:
             data = s->tcu.ter;
             break;
+        case REG_TESR:
+            data = 0;   // Write-only
+            break;
+        case REG_TECR:
+            data = 0;   // Write-only
+            break;
         case REG_TSR:
             data = s->tcu.tsr;
             break;
