@@ -51,7 +51,7 @@
 #define CMD_PROGRAM         0x80
 #define CMD_PROGRAM_PAGE    0x10
 #define CMD_ERASE           0x60
-#define CMD_ERASE_BLOCK     0xd0
+#define CMD_ERASE_CONFIRM   0xd0
 #define CMD_READ_ID         0x90
 #define CMD_RESET           0xff
 
@@ -62,7 +62,7 @@ static void nand_read_page(IngenicEmcNand *nand)
     uint64_t row = nand->addr >> 16;
     nand->page_ofs = nand->addr % (nand->page_size * 2);
     if (unlikely(blk_pread(nand->blk, row * (nand->page_size + nand->oob_size),
-                           nand->page_size + nand->oob_size, nand->page_buf, 0) < 0)) {
+                           nand->page_size + nand->oob_size, nand->buf, 0) < 0)) {
         printf("%s: read error at address 0x%"PRIx64"\n", __func__, nand->addr);
         qmp_stop(NULL);
     }
@@ -74,7 +74,7 @@ static void nand_write_page(IngenicEmcNand *nand)
     uint64_t page_ofs = nand->addr % (nand->page_size * 2);
     if (unlikely(blk_pwrite(nand->blk,
                             row * (nand->page_size + nand->oob_size) + page_ofs,
-                            nand->page_ofs, nand->page_buf, 0) < 0)) {
+                            nand->page_ofs, nand->buf, 0) < 0)) {
         printf("%s: write error at address 0x%"PRIx64"\n", __func__, nand->addr);
         qmp_stop(NULL);
     }
@@ -82,11 +82,11 @@ static void nand_write_page(IngenicEmcNand *nand)
 
 static void nand_erase_block(IngenicEmcNand *nand)
 {
-    uint64_t row = nand->addr >> 16;
-    uint64_t page_ofs = nand->addr % (nand->page_size * 2);
-    if (unlikely(blk_pwrite(nand->blk,
-                            row * (nand->page_size + nand->oob_size) + page_ofs,
-                            nand->page_ofs, nand->page_buf, 0) < 0)) {
+    uint64_t row = nand->addr;
+    uint32_t block_ofs = row / nand->block_pages;
+    uint32_t block_len = nand->block_pages * (nand->page_size + nand->oob_size);
+    memset(nand->buf, 0xff, block_len);
+    if (unlikely(blk_pwrite(nand->blk, block_ofs * block_len, block_len, nand->buf, 0) < 0)) {
         printf("%s: write error at address 0x%"PRIx64"\n", __func__, nand->addr);
         qmp_stop(NULL);
     }
@@ -109,7 +109,7 @@ static uint64_t ingenic_nand_io_read(void *opaque, hwaddr addr, unsigned size)
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %u read beyond page+oob size\n", __func__, bank);
             qmp_stop(NULL);
         } else {
-            data |= (uint64_t)nand->page_buf[nand->page_ofs] << (8 * i);
+            data |= (uint64_t)nand->buf[nand->page_ofs] << (8 * i);
             nand->page_ofs++;
         }
     }
@@ -221,8 +221,8 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
             nand->addr_ofs = 0;
             nand->page_ofs = 0;
             break;
-        case CMD_ERASE_BLOCK:
-            trace_ingenic_nand_cmd(bank, "CMD_ERASE_BLOCK", nand->addr);
+        case CMD_ERASE_CONFIRM:
+            trace_ingenic_nand_cmd(bank, "CMD_ERASE_CONFIRM", nand->addr);
             if (nand->prev_cmd != CMD_ERASE) {
                 qemu_log_mask(LOG_UNIMP, "%s: Unknown command 0x%02"PRIx8"\n", __func__, cmd);
                 qmp_stop(NULL);
@@ -236,13 +236,13 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
         case CMD_READ_STATUS:
             trace_ingenic_nand_cmd(bank, "CMD_READ_STATUS", nand->status);
             nand->page_ofs = 0;
-            nand->page_buf[0] = nand->status;
+            nand->buf[0] = nand->status;
             break;
         case CMD_READ_ID:
             trace_ingenic_nand_cmd(bank, "CMD_READ_ID", nand->nand_id);
             nand->page_ofs = 0;
             for (int i = 0; i < 8; i++)
-                nand->page_buf[i] = nand->nand_id >> (8 * i);
+                nand->buf[i] = nand->nand_id >> (8 * i);
             break;
         default:
             trace_ingenic_nand_cmd(bank, "CMD_UNKNOWN", cmd);
@@ -258,7 +258,7 @@ static void ingenic_nand_io_write(void *opaque, hwaddr addr, uint64_t data, unsi
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: Bank %u write beyond page+oob size\n", __func__, bank);
                 qmp_stop(NULL);
             } else {
-                nand->page_buf[nand->page_ofs] = data >> (8 * i);
+                nand->buf[nand->page_ofs] = data >> (8 * i);
                 nand->page_ofs++;
             }
         }
@@ -329,7 +329,7 @@ static void ingenic_emc_nand_realize(DeviceState *dev, Error **errp)
     }
     //qemu_log("\n");
 
-    s->page_buf = g_new(uint8_t, s->page_size + s->oob_size);
+    s->buf = g_new(uint8_t, s->block_pages * (s->page_size + s->oob_size));
 }
 
 static void ingenic_emc_nand_unrealize(DeviceState *dev)
@@ -337,7 +337,7 @@ static void ingenic_emc_nand_unrealize(DeviceState *dev)
     // Deregister with EMC
     IngenicEmcNand *s = INGENIC_EMC_NAND(dev);
     s->emc->nand[s->cs - 1] = NULL;
-    g_free(s->page_buf);
+    g_free(s->buf);
 }
 
 static void ingenic_emc_nand_init(Object *obj)
