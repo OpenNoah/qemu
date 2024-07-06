@@ -61,7 +61,6 @@ void qmp_stop(Error **errp);
 static void ingenic_msc_reset(Object *obj, ResetType type)
 {
     IngenicMsc *s = INGENIC_MSC(obj);
-    // DATA_FIFO_EMPTY
     s->reg.stat  = BIT(6);
     s->reg.clkrt = 0;
     s->reg.cmdat = 0;
@@ -73,6 +72,10 @@ static void ingenic_msc_reset(Object *obj, ResetType type)
     s->reg.cmd   = 0;
     s->reg.arg   = 0;
     s->reg.lpm   = 0;
+
+    s->data_offset = 0;
+    s->data_size = 0;
+    s->data_fifo_avail = false;
     qemu_set_irq(s->gpio_cd, sdbus_get_inserted(&s->sdbus));
 }
 
@@ -98,10 +101,26 @@ static void ingenic_msc_update_rx_flags(IngenicMsc *s)
     if (s->data_offset == s->data_size) {
         // FIFO empty
         s->reg.stat |= BIT(6);
+        s->data_fifo_avail = false;
     } else {
         // FIFO not empty
         s->reg.stat &= ~BIT(6);
     }
+    s->reg.snob = s->data_offset / s->reg.blklen;
+    ingenic_msc_update_irq(s);
+}
+
+static void ingenic_msc_update_tx_flags(IngenicMsc *s)
+{
+    // Update data transfer interrupt flags
+    if (s->data_offset == s->data_size) {
+        // Write complete
+        s->reg.stat |= BIT(12);
+        s->reg.ireg |= BIT(0);
+        s->data_fifo_avail = false;
+    }
+    // FIFO is always empty, ready to accept more data
+    s->reg.stat |= BIT(6);
     s->reg.snob = s->data_offset / s->reg.blklen;
     ingenic_msc_update_irq(s);
 }
@@ -189,13 +208,16 @@ static void ingenic_msc_start(IngenicMsc *s)
         qemu_log_mask(LOG_UNIMP, "%s: TODO IO_ABORT\n", __func__);
         qmp_stop(NULL);
     }
+
     if (s->reg.cmdat & BIT(3)) {
         s->data_offset = 0;
         s->data_size = s->reg.blklen * s->reg.nob;
+        s->data_fifo_avail = true;
         if (s->reg.cmdat & BIT(4)) {
             // Write operation
-            qemu_log_mask(LOG_UNIMP, "%s: TODO WRITE\n", __func__);
-            qmp_stop(NULL);
+            ingenic_msc_update_tx_flags(s);
+            if (s->data_size && (s->reg.cmdat & BIT(8)))
+                qemu_irq_raise(s->dma_tx);
         } else {
             // Read operation
             ingenic_msc_update_rx_flags(s);
@@ -221,14 +243,19 @@ err:
     ingenic_msc_update_irq(s);
 }
 
-uint32_t ingenic_msc_dma_rx(IngenicMsc *s, uint8_t *buf, uint32_t len)
+uint32_t ingenic_msc_sd_read(IngenicMsc *s, uint8_t *buf, uint32_t len)
 {
-    len = MIN(len, s->data_size - s->data_offset);
-    trace_ingenic_msc_dma_rx(len);
+    trace_ingenic_msc_sd_read(s->data_size, s->data_offset, len);
+    uint32_t avail = ingenic_msc_available(s);
+    if (unlikely(len > avail)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Read beyond available data\n", __func__);
+        qmp_stop(NULL);
+    }
+    len = MIN(len, avail);
     for (uint32_t ofs = 0; ofs < len; ofs += 4) {
         if (s->data_offset % ARRAY_SIZE(s->data_fifo) == 0) {
-            // FIFO is empty, read more data
-            uint32_t rlen = MIN(ARRAY_SIZE(s->data_fifo), s->data_size - s->data_offset);
+            // Data buffer is empty, read more data from SD
+            uint32_t rlen = MIN(ARRAY_SIZE(s->data_fifo), avail);
             trace_ingenic_msc_fifo_offset(s->data_offset, rlen);
             sdbus_read_data(&s->sdbus, &s->data_fifo[0], rlen);
         }
@@ -239,6 +266,38 @@ uint32_t ingenic_msc_dma_rx(IngenicMsc *s, uint8_t *buf, uint32_t len)
         s->data_offset += 4;
     }
     ingenic_msc_update_rx_flags(s);
+    return len;
+}
+
+uint32_t ingenic_msc_sd_write(IngenicMsc *s, const uint8_t *buf, uint32_t len)
+{
+    trace_ingenic_msc_sd_write(s->data_size, s->data_offset, len);
+    uint32_t avail = ingenic_msc_available(s);
+    if (unlikely(len > avail)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Write beyond available space\n", __func__);
+        qmp_stop(NULL);
+    }
+    len = MIN(len, avail);
+    for (uint32_t ofs = 0; ofs < len; ofs += 4) {
+        // From host mem to host mem, endianness doesn't matter
+        uint32_t v = ldl_he_p(&buf[ofs]);
+        stl_he_p(&s->data_fifo[s->data_offset % ARRAY_SIZE(s->data_fifo)], v);
+        s->data_offset += 4;
+
+        if (s->data_offset % ARRAY_SIZE(s->data_fifo) == 0) {
+            // Data buffer is full, write back to SD
+            uint32_t wlen = ARRAY_SIZE(s->data_fifo);
+            trace_ingenic_msc_fifo_offset(s->data_offset - wlen, wlen);
+            sdbus_write_data(&s->sdbus, &s->data_fifo[0], wlen);
+        }
+    }
+    if ((s->data_offset % ARRAY_SIZE(s->data_fifo) != 0) && (len == avail)) {
+        // Data buffer is not full, but at end of data transfer
+        uint32_t wlen = s->data_offset % ARRAY_SIZE(s->data_fifo);
+        trace_ingenic_msc_fifo_offset(s->data_offset - wlen, wlen);
+        sdbus_write_data(&s->sdbus, &s->data_fifo[0], wlen);
+    }
+    ingenic_msc_update_tx_flags(s);
     return len;
 }
 
@@ -273,22 +332,8 @@ static uint64_t ingenic_msc_read(void *opaque, hwaddr addr, unsigned size)
         s->resp_offset = (s->resp_offset + 1) % ARRAY_SIZE(s->resp);
         break;
     case REG_RXFIFO:
-        if (s->data_offset != s->data_size) {
-            if (s->data_offset % ARRAY_SIZE(s->data_fifo) == 0) {
-                // FIFO is empty, read more data
-                uint32_t rlen = MIN(ARRAY_SIZE(s->data_fifo), s->data_size - s->data_offset);
-                trace_ingenic_msc_fifo_offset(s->data_offset, rlen);
-                sdbus_read_data(&s->sdbus, &s->data_fifo[0], rlen);
-            }
-        }
-        data = ldl_le_p(&s->data_fifo[s->data_offset % ARRAY_SIZE(s->data_fifo)]);
-        if (likely(s->data_offset != s->data_size)) {
-            s->data_offset += 4;
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Read beyond available data\n", __func__);
-            qmp_stop(NULL);
-        }
-        ingenic_msc_update_rx_flags(s);
+        ingenic_msc_sd_read(s, (void *)&data, size);
+        data = le32_to_cpu(data);
         break;
     case REG_LPM:
         data = s->reg.lpm;
@@ -333,9 +378,11 @@ static void ingenic_msc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_BLKLEN:
         s->reg.blklen = data & 0xffff;
+        s->data_size = s->reg.blklen * s->reg.nob;
         break;
     case REG_NOB:
         s->reg.nob = data & 0xffff;
+        s->data_size = s->reg.blklen * s->reg.nob;
         break;
     case REG_IMASK:
         s->reg.imask = data | 0x0018;
@@ -350,6 +397,10 @@ static void ingenic_msc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_ARG:
         s->reg.arg = data;
+        break;
+    case REG_TXFIFO:
+        data = cpu_to_le32(data);
+        ingenic_msc_sd_write(s, (void *)&data, size);
         break;
     case REG_LPM:
         s->reg.lpm = data & BIT(0);

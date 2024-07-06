@@ -36,6 +36,7 @@
 #include "trace.h"
 
 #define MSC_RX_PASS_THROUGH 1
+#define MSC_TX_PASS_THROUGH 1
 
 #define REG_CH_DSA  0x00
 #define REG_CH_DTA  0x04
@@ -174,14 +175,9 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     case REQ_AUTO:
     case REQ_NAND:
         break;
+    case REQ_MSC0_TX:
     case REQ_MSC0_RX:
-        if (!s->msc) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: MSC controller not found\n", __func__);
-            qmp_stop(NULL);
-            avail = 0;
-        } else {
-            avail = MIN(size, ingenic_msc_available_rx(s->msc));
-        }
+        avail = MIN(size, ingenic_msc_available(s->msc));
         break;
     case REQ_BCH_DEC:
         // DMA read data from memory pointed by DSAR0 and write to BCH data register BHDR
@@ -212,7 +208,7 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
 #if MSC_RX_PASS_THROUGH
         } else if (req == REQ_MSC0_RX && src == 0x10021038) {
             // Fast pass-through for MSC RX
-            len = ingenic_msc_dma_rx(s->msc, buf, len);
+            len = ingenic_msc_sd_read(s->msc, buf, len);
 #endif
         } else {
             uint8_t *pbuf = &buf[0];
@@ -225,6 +221,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         if (dst_inc) {
             cpu_physical_memory_write(dst, &buf[0], len);
             dst += len;
+#if MSC_TX_PASS_THROUGH
+        } else if (req == REQ_MSC0_TX && dst == 0x1002103c) {
+            // Fast pass-through for MSC TX
+            len = ingenic_msc_sd_write(s->msc, buf, len);
+#endif
         } else {
             uint8_t *pbuf = &buf[0];
             for (int32_t i = len; i > 0; i -= dst_b) {
@@ -238,6 +239,7 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     switch (req) {
     case REQ_AUTO:
     case REQ_NAND:
+    case REQ_MSC0_TX:
     case REQ_MSC0_RX:
         s->reg[dmac].ch[ch].dtc = size / tsz_b;
         //s->reg[dmac].ch[ch].dsa = src;
@@ -384,9 +386,20 @@ static void ingenic_dmac_wait_req(IngenicDmac *s, int dmac, int ch)
     uint8_t req = s->reg[dmac].ch[ch].drt;
     switch (req) {
     case REQ_NAND:
+        // Wait for request trigger
+        s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+        break;
+    case REQ_MSC0_TX:
     case REQ_MSC0_RX:
         // Wait for request trigger
         s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+        if (unlikely(!s->msc)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: MSC controller not found\n", __func__);
+            qmp_stop(NULL);
+        } else if (ingenic_msc_available(s->msc)) {
+            // Data/space available, start immediately
+            s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
+        }
         break;
     case REQ_BCH_ENC:
     case REQ_BCH_DEC:

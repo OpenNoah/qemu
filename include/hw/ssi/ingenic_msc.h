@@ -46,12 +46,14 @@ typedef struct IngenicMsc
     // Properties
     BlockBackend *blk;
     uint32_t model;
+
     uint16_t resp[8];
     uint8_t  resp_offset;
     uint8_t  data_fifo[4096];
     uint32_t data_offset;
     uint32_t data_size;
     uint16_t prev_irq;
+    bool data_fifo_avail;
 
     // Registers
     struct {
@@ -75,11 +77,12 @@ typedef struct IngenicMscClass
     ResettablePhases parent_phases;
 } IngenicMscClass;
 
-static inline uint32_t ingenic_msc_available_rx(IngenicMsc *s)
+static inline uint32_t ingenic_msc_available(IngenicMsc *s)
 {
-    return s->data_size - s->data_offset;
+    return s->data_fifo_avail ? s->data_size - s->data_offset : 0;
 }
 
-uint32_t ingenic_msc_dma_rx(IngenicMsc *s, uint8_t *buf, uint32_t len);
+uint32_t ingenic_msc_sd_read(IngenicMsc *s, uint8_t *buf, uint32_t len);
+uint32_t ingenic_msc_sd_write(IngenicMsc *s, const uint8_t *buf, uint32_t len);
 
 #endif // INGENIC_MSC_H
