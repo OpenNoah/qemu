@@ -53,6 +53,8 @@
 #include "hw/i2c/ingenic_i2c.h"
 #include "hw/ssi/ingenic_msc.h"
 #include "hw/audio/ingenic_aic.h"
+//#include "hw/usb/ingenic_uhc.h"
+#include "hw/usb/hcd-ohci.h"
 #include "hw/usb/ingenic_udc.h"
 
 IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
@@ -98,28 +100,40 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     memory_region_init(ahb, NULL, "ahb", 0x01000000);
     memory_region_add_subregion(sys_mem, 0x13000000, ahb);
 
-    // 0x13010000 Register EMC on AHB0
+    // 0x13010000 Register EMC on AHB
     IngenicEmc *emc = INGENIC_EMC(qdev_new(TYPE_INGENIC_EMC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(emc), &error_fatal);
     MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
     memory_region_add_subregion(ahb, 0x00010000, emc_mr);
 
-    // 0x13020000 Register DMAC on AHB0
+    // 0x13020000 Register DMAC on AHB
     IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
     object_property_set_uint(OBJECT(dmac), "model", 0x4740, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb, 0x00020000, dmac_mr);
 
-#if 0
-    // 0x13040000 Register UDC on AHB0
+    // 0x13030000 Register UHC on AHB
+#if 1
+    OHCISysBusState *uhc = SYSBUS_OHCI(qdev_new(TYPE_SYSBUS_OHCI));
+    object_property_set_uint(OBJECT(uhc), "num-ports", 1, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(uhc), &error_fatal);
+    MemoryRegion *uhc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(uhc), 0);
+    memory_region_add_subregion(ahb, 0x00030000, uhc_mr);
+#else
+    IngenicUhc *uhc = INGENIC_UHC(qdev_new(TYPE_INGENIC_UHC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(uhc), &error_fatal);
+    MemoryRegion *uhc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(uhc), 0);
+    memory_region_add_subregion(ahb, 0x00030000, uhc_mr);
+#endif
+
+    // 0x13040000 Register UDC on AHB
     IngenicUdc *udc = INGENIC_UDC(qdev_new(TYPE_INGENIC_UDC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(udc), &error_fatal);
     MemoryRegion *udc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(udc), 0);
-    memory_region_add_subregion(ahb0, 0x00040000, udc_mr);
-#endif
+    memory_region_add_subregion(ahb, 0x00040000, udc_mr);
 
-    // 0x13050000 Register LCD controller on AHB0
+    // 0x13050000 Register LCD controller on AHB
     IngenicLcd *lcd = INGENIC_LCD(qdev_new(TYPE_INGENIC_LCD));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(lcd), &error_fatal);
     MemoryRegion *lcd_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(lcd), 0);
@@ -256,7 +270,6 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         // 15 RTC
         {DEVICE(msc),  "irq-out",  0, 14},
         {DEVICE(adc),  "irq-out",  0, 12},
-        // 3 UHC
         // 2 EMC
         // 1 I2C
     };
@@ -267,6 +280,9 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
                                     irqs[i].dev_irq_name, irqs[i].dev_irq, irq);
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
+
+    qemu_irq uhc_irq = qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 3);
+    sysbus_connect_irq(SYS_BUS_DEVICE(uhc), 0, uhc_irq);
 
     // Connect DMA requests
     qdev_connect_gpio_out_named(DEVICE(msc), "dma-tx-req", 0,

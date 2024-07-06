@@ -50,6 +50,7 @@ config INGENIC_JZ4755
 config INGENIC_JZ4740
     bool
     select SPLIT_IRQ
+    select USB_OHCI_SYSBUS
     select INGENIC_CGU
     select INGENIC_EMC
     select INGENIC_GPIO
