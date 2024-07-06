@@ -44,6 +44,10 @@
 #define REG_ACSDR   0x2c
 #define REG_I2SDIV  0x30
 #define REG_AICDR   0x34
+// JZ4740
+#define REG_CDCCR1  0x80
+#define REG_CDCCR2  0x84
+// JZ4755
 #define REG_CKCFG   0xa0
 #define REG_RGADW   0xa4
 #define REG_RGDATA  0xa8
@@ -59,6 +63,9 @@ static void ingenic_aic_reset(Object *obj, ResetType type)
     }
     s->reg.aiccr = 0x00240000;
     s->reg.i2scr = 0;
+    s->reg.aicsr = BIT(3);
+    s->reg.cdccr1 = 0x001b2302;
+    s->reg.cdccr2 = 0x00170803;
 }
 
 static uint64_t ingenic_aic_read(void *opaque, hwaddr addr, unsigned size)
@@ -75,8 +82,17 @@ static uint64_t ingenic_aic_read(void *opaque, hwaddr addr, unsigned size)
     case REG_I2SCR:
         data = s->reg.i2scr;
         break;
+    case REG_AICSR:
+        data = s->reg.aicsr;
+        break;
     case REG_I2SDIV:
         data = s->reg.i2sdiv;
+        break;
+    case REG_CDCCR1:
+        data = s->reg.cdccr1;
+        break;
+    case REG_CDCCR2:
+        data = s->reg.cdccr2;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
@@ -109,6 +125,12 @@ static void ingenic_aic_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_I2SDIV:
         s->reg.i2sdiv = data & 0x0f;
+        break;
+    case REG_CDCCR1:
+        s->reg.cdccr1 = data & 0x3f1f7f03;
+        break;
+    case REG_CDCCR2:
+        s->reg.cdccr2 = data & 0x001f0f33;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
