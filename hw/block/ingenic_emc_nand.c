@@ -340,6 +340,8 @@ static void ingenic_emc_nand_unrealize(DeviceState *dev)
     g_free(s->buf);
 }
 
+OBJECT_DEFINE_TYPE(IngenicEmcNand, ingenic_emc_nand, INGENIC_EMC_NAND, DEVICE)
+
 static void ingenic_emc_nand_init(Object *obj)
 {
     IngenicEmcNand *s = INGENIC_EMC_NAND(obj);
@@ -368,8 +370,6 @@ static void ingenic_emc_nand_class_init(ObjectClass *class, void *data)
     dc->realize = ingenic_emc_nand_realize;
     dc->unrealize = ingenic_emc_nand_unrealize;
 }
-
-OBJECT_DEFINE_TYPE(IngenicEmcNand, ingenic_emc_nand, INGENIC_EMC_NAND, DEVICE)
 
 
 // EMC NAND ECC module

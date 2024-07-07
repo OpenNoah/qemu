@@ -42,10 +42,6 @@
 
 void qmp_stop(Error **errp);
 
-static void ingenic_emc_sdram_init(Object *obj)
-{
-}
-
 static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
 {
     Object *obj = OBJECT(dev);
@@ -61,6 +57,12 @@ static void ingenic_emc_sdram_realize(DeviceState *dev, Error **errp)
     s->alias_mr = 0;
     // Register on EMC main controller
     ingenic_emc_register_sdram(s, s->cs);
+}
+
+OBJECT_DEFINE_TYPE(IngenicEmcSdram, ingenic_emc_sdram, INGENIC_EMC_SDRAM, DEVICE)
+
+static void ingenic_emc_sdram_init(Object *obj)
+{
 }
 
 static void ingenic_emc_sdram_finalize(Object *obj)
@@ -79,8 +81,6 @@ static void ingenic_emc_sdram_class_init(ObjectClass *class, void *data)
     device_class_set_props(dc, ingenic_emc_sdram_properties);
     dc->realize = ingenic_emc_sdram_realize;
 }
-
-OBJECT_DEFINE_TYPE(IngenicEmcSdram, ingenic_emc_sdram, INGENIC_EMC_SDRAM, DEVICE)
 
 
 // EMC SDRAM configuration space

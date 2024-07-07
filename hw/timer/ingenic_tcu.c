@@ -405,6 +405,8 @@ static MemoryRegionOps tcu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicTcu, ingenic_tcu, INGENIC_TCU, SYS_BUS_DEVICE)
+
 static void ingenic_tcu_init(Object *obj)
 {
     IngenicTcu *s = INGENIC_TCU(obj);
@@ -456,5 +458,3 @@ static void ingenic_tcu_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicTcu, ingenic_tcu, INGENIC_TCU, SYS_BUS_DEVICE)

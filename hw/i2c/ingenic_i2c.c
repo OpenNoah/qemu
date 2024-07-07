@@ -200,6 +200,8 @@ static MemoryRegionOps i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicI2c, ingenic_i2c, INGENIC_I2C, SYS_BUS_DEVICE)
+
 static void ingenic_i2c_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -223,5 +225,3 @@ static void ingenic_i2c_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicI2c, ingenic_i2c, INGENIC_I2C, SYS_BUS_DEVICE)

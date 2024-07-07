@@ -536,6 +536,8 @@ static MemoryRegionOps lcd_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicLcd, ingenic_lcd, INGENIC_LCD, SYS_BUS_DEVICE)
+
 static void ingenic_lcd_init(Object *obj)
 {
     IngenicLcd *s = INGENIC_LCD(obj);
@@ -565,5 +567,3 @@ static void ingenic_lcd_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicLcd, ingenic_lcd, INGENIC_LCD, SYS_BUS_DEVICE)

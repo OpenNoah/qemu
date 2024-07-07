@@ -327,6 +327,8 @@ static MemoryRegionOps adc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicAdc, ingenic_adc, INGENIC_ADC, SYS_BUS_DEVICE)
+
 static void ingenic_adc_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -358,5 +360,3 @@ static void ingenic_adc_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicAdc, ingenic_adc, INGENIC_ADC, SYS_BUS_DEVICE)

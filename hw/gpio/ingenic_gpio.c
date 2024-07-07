@@ -237,6 +237,8 @@ static void ingenic_gpio_input_irq(void *opaque, int n, int level)
     trace_ingenic_gpio_status(gpio->name, gpio->pin, gpio->dat, gpio->flg);
 }
 
+OBJECT_DEFINE_TYPE(IngenicGpio, ingenic_gpio, INGENIC_GPIO, SYS_BUS_DEVICE)
+
 static void ingenic_gpio_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -274,5 +276,3 @@ static void ingenic_gpio_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &gpio_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicGpio, ingenic_gpio, INGENIC_GPIO, SYS_BUS_DEVICE)

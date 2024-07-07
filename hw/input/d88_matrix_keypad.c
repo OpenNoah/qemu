@@ -245,10 +245,6 @@ static const QemuInputHandler d88_matrix_keypad_handler = {
     .event = &d88_matrix_keypad_event,
 };
 
-static void d88_matrix_keypad_init(Object *obj)
-{
-}
-
 static void d88_matrix_keypad_realize(DeviceState *dev, Error **errp)
 {
     D88MatrixKeypad *s = D88_MATRIX_KEYPAD(dev);
@@ -263,6 +259,12 @@ static void d88_matrix_keypad_realize(DeviceState *dev, Error **errp)
     d88_matrix_keypad_reset(dev);
 
     qemu_input_handler_register(dev, &d88_matrix_keypad_handler);
+}
+
+OBJECT_DEFINE_TYPE(D88MatrixKeypad, d88_matrix_keypad, D88_MATRIX_KEYPAD, DEVICE)
+
+static void d88_matrix_keypad_init(Object *obj)
+{
 }
 
 static void d88_matrix_keypad_finalize(Object *obj)
@@ -286,5 +288,3 @@ static void d88_matrix_keypad_class_init(ObjectClass *klass, void *data)
     dc->reset = d88_matrix_keypad_reset;
     //dc->vmsd = &vmstate_lm_kbd;
 }
-
-OBJECT_DEFINE_TYPE(D88MatrixKeypad, d88_matrix_keypad, D88_MATRIX_KEYPAD, DEVICE)

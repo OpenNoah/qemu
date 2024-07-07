@@ -131,6 +131,8 @@ static MemoryRegionOps intc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicIntc, ingenic_intc, INGENIC_INTC, SYS_BUS_DEVICE)
+
 static void ingenic_intc_init(Object *obj)
 {
     IngenicIntc *s = INGENIC_INTC(obj);
@@ -155,5 +157,3 @@ static void ingenic_intc_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicIntc, ingenic_intc, INGENIC_INTC, SYS_BUS_DEVICE)

@@ -87,7 +87,7 @@ static uint64_t ingenic_bch_read(void *opaque, hwaddr addr, unsigned size)
         data = 0xdeadbeef; //s->bhpar[(addr - REG_BHPAR0) / 4];
         break;
     case REG_BHERR0 ... REG_BHERR3:
-        data = s->bherr[(addr - REG_BHPAR0) / 4];
+        data = s->bherr[(addr - REG_BHERR0) / 4];
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
@@ -177,6 +177,8 @@ static MemoryRegionOps bch_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicBch, ingenic_bch, INGENIC_BCH, SYS_BUS_DEVICE)
+
 static void ingenic_bch_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -199,5 +201,3 @@ static void ingenic_bch_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicBch, ingenic_bch, INGENIC_BCH, SYS_BUS_DEVICE)
