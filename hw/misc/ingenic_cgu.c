@@ -233,7 +233,7 @@ static MemoryRegionOps cgu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-IngenicCgu *ingenic_cgu_get_cgu()
+IngenicCgu *ingenic_cgu_get_cgu(void)
 {
     Object *obj = object_resolve_path_type("", TYPE_INGENIC_CGU, NULL);
     if (!obj) {
@@ -254,6 +254,16 @@ static const ClockPortInitArray cgu_clks = {
     QDEV_CLOCK_END
 };
 
+static void ingenic_cgu_realize(DeviceState *dev, Error **errp)
+{
+    IngenicCgu *s = INGENIC_CGU(dev);
+    clock_set_hz(s->clk_ext, s->ext_freq);
+    clock_set_hz(s->clk_rtc, s->rtc_freq);
+    ingenic_cgu_update_clocks(s);
+}
+
+OBJECT_DEFINE_TYPE(IngenicCgu, ingenic_cgu, INGENIC_CGU, SYS_BUS_DEVICE)
+
 static void ingenic_cgu_init(Object *obj)
 {
     IngenicCgu *s = INGENIC_CGU(obj);
@@ -261,14 +271,6 @@ static void ingenic_cgu_init(Object *obj)
     memory_region_init_io(&s->mr, OBJECT(s), &cgu_ops, s, "cgu", 0x1000);
     sysbus_init_mmio(sbd, &s->mr);
     qdev_init_clocks(DEVICE(s), cgu_clks);
-}
-
-static void ingenic_cgu_realize(DeviceState *dev, Error **errp)
-{
-    IngenicCgu *s = INGENIC_CGU(dev);
-    clock_set_hz(s->clk_ext, s->ext_freq);
-    clock_set_hz(s->clk_rtc, s->rtc_freq);
-    ingenic_cgu_update_clocks(s);
 }
 
 static void ingenic_cgu_finalize(Object *obj)
@@ -296,5 +298,3 @@ static void ingenic_cgu_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &cgu_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicCgu, ingenic_cgu, INGENIC_CGU, SYS_BUS_DEVICE)

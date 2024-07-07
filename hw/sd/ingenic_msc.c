@@ -418,6 +418,8 @@ static MemoryRegionOps msc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicMsc, ingenic_msc, INGENIC_MSC, SYS_BUS_DEVICE)
+
 static void ingenic_msc_init(Object *obj)
 {
     IngenicMsc *s = INGENIC_MSC(obj);
@@ -452,8 +454,6 @@ static void ingenic_msc_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &msc_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicMsc, ingenic_msc, INGENIC_MSC, SYS_BUS_DEVICE)
 
 static const TypeInfo ingenic_sdhost_types[] = {
     {

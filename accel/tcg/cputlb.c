@@ -57,6 +57,8 @@
 /* #define DEBUG_TLB */
 /* #define DEBUG_TLB_LOG */
 
+void qmp_stop(Error **errp);
+
 #ifdef DEBUG_TLB
 # define DEBUG_TLB_GATE 1
 # ifdef DEBUG_TLB_LOG
@@ -1968,7 +1970,6 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         if (unlikely(r != MEMTX_OK)) {
 #if 1
             printf("Failed mem read " HWADDR_FMT_plx "\n", addr);
-            extern void qmp_stop(Error **errp);
             qmp_stop(NULL);
 #endif
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
@@ -2513,7 +2514,6 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
         if (unlikely(r != MEMTX_OK)) {
 #if 1
             printf("Failed mem write " HWADDR_FMT_plx " = 0x%"PRIx64"\n", addr, val_le);
-            extern void qmp_stop(Error **errp);
             qmp_stop(NULL);
 #endif
             io_failed(cpu, full, addr, this_size, MMU_DATA_STORE,

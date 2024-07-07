@@ -126,6 +126,8 @@ static MemoryRegionOps rtc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+OBJECT_DEFINE_TYPE(IngenicRtc, ingenic_rtc, INGENIC_RTC, SYS_BUS_DEVICE)
+
 static void ingenic_rtc_init(Object *obj)
 {
     IngenicRtc *s = INGENIC_RTC(obj);
@@ -147,5 +149,3 @@ static void ingenic_rtc_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicRtc, ingenic_rtc, INGENIC_RTC, SYS_BUS_DEVICE)
