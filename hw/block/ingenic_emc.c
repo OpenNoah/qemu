@@ -137,7 +137,6 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     IngenicEmc *s = INGENIC_EMC(opaque);
     trace_ingenic_emc_write(addr, data);
     uint32_t diff = 0;
-    uint32_t bank = 0;
     if (addr < 0x80) {
         // Static RAM interface
         switch (addr) {
@@ -157,7 +156,7 @@ static void ingenic_emc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         case REG_SACR2:
         case REG_SACR3:
         case REG_SACR4: {
-            bank = (addr - REG_SACR1) / 4;
+            uint32_t bank = (addr - REG_SACR1) / 4;
             s->SACR[bank] = data & 0xffff;
             // Update memory region
             MemoryRegion *mr = s->nand[bank] ? &s->nand[bank]->mr : &s->static_mr[bank];
@@ -212,7 +211,7 @@ static MemoryRegionOps emc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static IngenicEmc *get_emc()
+static IngenicEmc *get_emc(void)
 {
     Object *obj = object_resolve_path_type("", TYPE_INGENIC_EMC, NULL);
     if (!obj) {
@@ -252,6 +251,8 @@ IngenicEmc *ingenic_emc_register_sdram(IngenicEmcSdram *sdram, uint32_t cs)
     // SDRAM manages its own system memory region
     return s;
 }
+
+OBJECT_DEFINE_TYPE(IngenicEmc, ingenic_emc, INGENIC_EMC, SYS_BUS_DEVICE)
 
 static void ingenic_emc_init(Object *obj)
 {
@@ -294,5 +295,3 @@ static void ingenic_emc_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &emc_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicEmc, ingenic_emc, INGENIC_EMC, SYS_BUS_DEVICE)

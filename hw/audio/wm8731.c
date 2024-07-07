@@ -74,6 +74,8 @@ static void wm8731_realize(DeviceState *dev, Error **errp)
 {
 }
 
+OBJECT_DEFINE_TYPE(Wm8731, wm8731, WM8731, I2C_SLAVE)
+
 static void wm8731_init(Object *obj)
 {
 }
@@ -94,5 +96,3 @@ static void wm8731_class_init(ObjectClass *klass, void *data)
     k->send = wm8731_i2c_tx;
     //dc->vmsd = &vmstate_lm_kbd;
 }
-
-OBJECT_DEFINE_TYPE(Wm8731, wm8731, WM8731, I2C_SLAVE)

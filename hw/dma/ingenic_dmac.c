@@ -624,7 +624,7 @@ static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigne
                 qmp_stop(NULL);
             }
             // Start DMA transfer
-            for (int ch = 0; ch < INGENIC_DMAC_NUM_CH; ch++) {
+            for (ch = 0; ch < INGENIC_DMAC_NUM_CH; ch++) {
                 if (ingenic_dmac_channel_is_enabled(s, dmac, ch)) {
                     s->dma[dmac].ch[ch].state = IngenicDmacChDesc;
                     qemu_bh_schedule(s->trigger_bh);
@@ -658,6 +658,8 @@ static MemoryRegionOps dmac_ops = {
     .write = ingenic_dmac_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
+
+OBJECT_DEFINE_TYPE(IngenicDmac, ingenic_dmac, INGENIC_DMAC, SYS_BUS_DEVICE)
 
 static void ingenic_dmac_init(Object *obj)
 {
@@ -693,5 +695,3 @@ static void ingenic_dmac_class_init(ObjectClass *class, void *data)
                                        NULL,
                                        &bch_class->parent_phases);
 }
-
-OBJECT_DEFINE_TYPE(IngenicDmac, ingenic_dmac, INGENIC_DMAC, SYS_BUS_DEVICE)

@@ -428,6 +428,8 @@ static void stmpe2403_realize(DeviceState *dev, Error **errp)
 {
 }
 
+OBJECT_DEFINE_TYPE(Stmpe2403, stmpe2403, STMPE2403, I2C_SLAVE)
+
 static void stmpe2403_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -460,5 +462,3 @@ static void stmpe2403_class_init(ObjectClass *klass, void *data)
     k->send = stmpe2403_i2c_tx;
     //dc->vmsd = &vmstate_lm_kbd;
 }
-
-OBJECT_DEFINE_TYPE(Stmpe2403, stmpe2403, STMPE2403, I2C_SLAVE)
