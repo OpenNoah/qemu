@@ -545,6 +545,7 @@ static void ingenic_lcd_init(Object *obj)
 
     timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL, &ingenic_lcd_timer, s);
     s->con = graphic_console_init(DEVICE(s), 0, &fb_ops, s);
+    dpy_cursor_define(s->con, cursor_builtin_left_ptr());
 }
 
 static void ingenic_lcd_finalize(Object *obj)
