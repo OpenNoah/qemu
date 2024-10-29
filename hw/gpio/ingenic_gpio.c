@@ -119,20 +119,40 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
     case REG_PADAT:
         data = gpio->dat;
         break;
+    case REG_PADATS:
+    case REG_PADATC:
+        data = 0;   // Should not read this
+        break;
     case REG_PAIM:
         data = gpio->im;
         break;
     case REG_PAPE:
         data = gpio->pe;
         break;
+    case REG_PAPES:
+    case REG_PAPEC:
+        data = 0;   // Should not read this
+        break;
     case REG_PAFUN:
         data = gpio->fun;
+        break;
+    case REG_PAFUNS:
+    case REG_PAFUNC:
+        data = 0;   // Should not read this
         break;
     case REG_PASEL:
         data = gpio->sel;
         break;
+    case REG_PASELS:
+    case REG_PASELC:
+        data = 0;   // Should not read this
+        break;
     case REG_PADIR:
         data = gpio->dir;
+        break;
+    case REG_PADIRS:
+    case REG_PADIRC:
+        data = 0;   // Should not read this
         break;
     case REG_PATRG:
         data = gpio->trg;
