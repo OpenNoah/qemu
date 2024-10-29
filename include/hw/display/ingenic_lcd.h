@@ -43,12 +43,17 @@ typedef struct IngenicLcd
     int64_t timer_ns;
     qemu_irq irq;
 
+    // Properties
+    char *model_str;
+    enum {IngenicLcdModelNormal, IngenicLcdModelDeltaRGB} model;
+
     // Variables
     uint32_t xres;
     uint32_t yres;
     uint32_t mode;
     uint32_t osd_mode[2];
     bool invalidate;
+    bool field;
 
     // Registers
     uint32_t lcdcfg;
