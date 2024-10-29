@@ -273,7 +273,7 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
 {
     IngenicTcu *s = INGENIC_TCU(opaque);
     uint64_t data = 0;
-    if (addr >= 0x40 && addr < 0xa0) {
+    if (addr >= 0x40 && addr < 0xc0) {
         uint32_t timer = (addr - 0x40) / 0x10;
         data = ingenic_tcu_timer_read(&s->tcu.timer[timer], addr, size);
     } else {
@@ -322,7 +322,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 {
     trace_ingenic_tcu_write(addr, data);
     IngenicTcu *s = INGENIC_TCU(opaque);
-    if (addr >= 0x40 && addr < 0xa0) {
+    if (addr >= 0x40 && addr < 0xc0) {
         uint32_t timer = (addr - 0x40) / 0x10;
         ingenic_tcu_timer_write(&s->tcu.timer[timer], addr, data, size);
     } else {
@@ -331,10 +331,10 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         case REG_TESR:
         case REG_TECR:
             diff = s->tcu.ter ^ data;
-            if (addr == 0x14)
-                s->tcu.ter |=  data & 0x803f;
+            if (addr == REG_TESR)
+                s->tcu.ter |=  data & 0x80ff;
             else
-                s->tcu.ter &= ~data & 0x803f;
+                s->tcu.ter &= ~data & 0x80ff;
 
             // Update timers
             trace_ingenic_tcu_enables(s->tcu.ter);
@@ -350,24 +350,24 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             }
             break;
         case REG_TFSR:
-            s->tcu.tfr |=  data & 0x003f803f;
+            s->tcu.tfr |=  data & 0x00ff80ff;
             update_irq(s);
             break;
         case REG_TFCR:
-            s->tcu.tfr &= ~data & 0x003f803f;
+            s->tcu.tfr &= ~data & 0x00ff80ff;
             update_irq(s);
             break;
         case REG_TSSR:
-            s->tcu.tsr |=  data & 0x0001803f;
+            s->tcu.tsr |=  data & 0x000180ff;
             break;
         case REG_TSCR:
-            s->tcu.tsr &= ~data & 0x0001803f;
+            s->tcu.tsr &= ~data & 0x000180ff;
             break;
         case REG_TMSR:
-            s->tcu.tmr |=  data & 0x003f803f;
+            s->tcu.tmr |=  data & 0x00ff80ff;
             break;
         case REG_TMCR:
-            s->tcu.tmr &= ~data & 0x003f803f;
+            s->tcu.tmr &= ~data & 0x00ff80ff;
             break;
         case REG_OSTDR:
             s->ost.tmr.comp = data;
