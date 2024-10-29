@@ -28,6 +28,10 @@ config NOAH_NP1380
     bool
     select INGENIC_JZ4740
 
+config GGV_AONE
+    bool
+    select INGENIC_JZ4720
+
 config INGENIC_JZ4755
     bool
     select SPLIT_IRQ
