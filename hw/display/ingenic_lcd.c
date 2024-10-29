@@ -107,20 +107,38 @@ static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
         case 565:
             tmp = *(uint16_t *)src;
             src += 2;
-            r = (tmp >> 8) & 0xf8;
-            g = (tmp >> 3) & 0xfc;
-            b = (tmp << 3) & 0xf8;
+            if (s->model == IngenicLcdModelDeltaRGB && s->field) {
+                g = (tmp >> 8) & 0xf8;
+                b = (tmp >> 3) & 0xfc;
+                r = (tmp << 3) & 0xf8;
+            } else {
+                r = (tmp >> 8) & 0xf8;
+                g = (tmp >> 3) & 0xfc;
+                b = (tmp << 3) & 0xf8;
+            }
             break;
         case 666:
-            b = *src++ & 0xfc;
-            g = *src++ & 0xfc;
-            r = *src++ & 0xfc;
+            if (s->model == IngenicLcdModelDeltaRGB && s->field) {
+                r = *src++ & 0xfc;
+                b = *src++ & 0xfc;
+                g = *src++ & 0xfc;
+            } else {
+                b = *src++ & 0xfc;
+                g = *src++ & 0xfc;
+                r = *src++ & 0xfc;
+            }
             src++;
             break;
         case 888:
-            b = *src++;
-            g = *src++;
-            r = *src++;
+            if (s->model == IngenicLcdModelDeltaRGB && s->field) {
+                r = *src++;
+                b = *src++;
+                g = *src++;
+            } else {
+                b = *src++;
+                g = *src++;
+                r = *src++;
+            }
             src++;
             break;
         }
@@ -149,6 +167,8 @@ static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
             break;
         }
     }
+
+    s->field = s->model == IngenicLcdModelDeltaRGB && !s->field;
 }
 
 static void ingenic_lcd_update_display(void *opaque)
@@ -339,6 +359,7 @@ static void ingenic_lcd_reset(Object *obj, ResetType type)
     IngenicLcd *s = INGENIC_LCD(obj);
     timer_del(&s->timer);
     s->mode = 0;
+    s->field = false;
 }
 
 static uint64_t ingenic_lcd_read(void *opaque, hwaddr addr, unsigned size)
@@ -550,6 +571,16 @@ static void ingenic_lcd_init(Object *obj)
     dpy_cursor_define(s->con, cursor_builtin_left_ptr());
 }
 
+static void ingenic_lcd_realize(DeviceState *dev, Error **errp)
+{
+    IngenicLcd *s = INGENIC_LCD(dev);
+    s->model = IngenicLcdModelNormal;
+    if (s->model_str) {
+        if (strcmp(s->model_str, "delta-rgb") == 0)
+            s->model = IngenicLcdModelDeltaRGB;
+    }
+}
+
 static void ingenic_lcd_finalize(Object *obj)
 {
     IngenicLcd *s = INGENIC_LCD(obj);
@@ -557,8 +588,16 @@ static void ingenic_lcd_finalize(Object *obj)
     s->mode = 0;
 }
 
+static Property ingenic_lcd_properties[] = {
+    DEFINE_PROP_STRING("model", IngenicLcd, model_str),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ingenic_lcd_class_init(ObjectClass *class, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(class);
+    device_class_set_props(dc, ingenic_lcd_properties);
+    dc->realize = ingenic_lcd_realize;
     IngenicLcdClass *bch_class = INGENIC_LCD_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
     resettable_class_set_parent_phases(rc,
