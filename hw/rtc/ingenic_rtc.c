@@ -31,11 +31,24 @@
 #include "hw/rtc/ingenic_rtc.h"
 #include "trace.h"
 
+#define REG_RTCCR   0x00
+#define REG_RTCSR   0x04
+#define REG_RTCSAR  0x08
+#define REG_RTCGR   0x0c
+
+#define REG_HCR     0x20
+#define REG_HWFCR   0x24
+#define REG_HRCR    0x28
+#define REG_HWCR    0x2c
+#define REG_HWRSR   0x30
+#define REG_HSPR    0x34
+
 void qmp_stop(Error **errp);
 
 static void ingenic_rtc_reset(Object *obj, ResetType type)
 {
     IngenicRtc *s = INGENIC_RTC(obj);
+    s->rtcsr = 0;
     s->rtccr = 0x81;
 }
 
@@ -44,35 +57,34 @@ static uint64_t ingenic_rtc_read(void *opaque, hwaddr addr, unsigned size)
     IngenicRtc *s = INGENIC_RTC(opaque);
     uint64_t data = 0;
     switch (addr) {
-    case 0x00:
+    case REG_RTCCR:
         data = s->rtccr;
         break;
-    case 0x04:
-        data = s->rtcsr;
-        data = get_clock_realtime() / 1000000000;
+    case REG_RTCSR:
+        data = (uint32_t)(get_clock_realtime() / 1000000000 - s->rtcsr);
         break;
-    case 0x08:
+    case REG_RTCSAR:
         data = s->rtcsar;
         break;
-    case 0x0c:
+    case REG_RTCGR:
         data = s->rtcgr;
         break;
-    case 0x20:
+    case REG_HCR:
         data = 0;
         break;
-    case 0x24:
+    case REG_HWFCR:
         data = s->hwfcr;
         break;
-    case 0x28:
+    case REG_HRCR:
         data = s->hrcr;
         break;
-    case 0x2c:
+    case REG_HWCR:
         data = s->hwcr;
         break;
-    case 0x30:
+    case REG_HWRSR:
         data = 0;
         break;
-    case 0x34:
+    case REG_HSPR:
         data = s->hspr;
         break;
     default:
@@ -88,29 +100,35 @@ static void ingenic_rtc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     IngenicRtc *s = INGENIC_RTC(opaque);
     trace_ingenic_rtc_write(addr, data);
     switch (addr) {
-    case 0x00:
+    case REG_RTCCR:
         s->rtccr = (data & 0x2f) | BIT(7);
         break;
-    case 0x04:
-        s->rtcsr = data;
+    case REG_RTCSR:
+        s->rtcsr = get_clock_realtime() / 1000000000 - data;
         break;
-    case 0x08:
+    case REG_RTCSAR:
         s->rtcsar = data;
         break;
-    case 0x0c:
+    case REG_RTCGR:
         if ((s->rtcgr & BIT(31)) == 0)
             s->rtcgr = data & 0x83ffffff;
         break;
-    case 0x24:
+    case REG_HCR:
+        if (data & 1)
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Guest requested power-down\n", __func__);
+        break;
+    case REG_HWFCR:
         s->hwfcr = data & 0xffe0;
         break;
-    case 0x28:
+    case REG_HRCR:
         s->hrcr = data & 0x0fe0;
         break;
-    case 0x2c:
+    case REG_HWCR:
         s->hwcr = data & 0x01;
         break;
-    case 0x34:
+    case REG_HWRSR:
+        break;
+    case REG_HSPR:
         s->hspr = data;
         break;
     default:
