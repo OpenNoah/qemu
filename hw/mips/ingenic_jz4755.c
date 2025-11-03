@@ -44,6 +44,7 @@
 #include "hw/gpio/ingenic_gpio.h"
 #include "hw/char/ingenic_uart.h"
 #include "hw/adc/ingenic_adc.h"
+#include "hw/rtc/ingenic_rtc.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -102,6 +103,12 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     // 0x10000000 Register CGU on APB
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
+
+    // 0x10003000 Register RTC on APB
+    IngenicRtc *rtc = INGENIC_RTC(qdev_new(TYPE_INGENIC_RTC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(rtc), &error_fatal);
+    MemoryRegion *rtc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(rtc), 0);
+    memory_region_add_subregion(apb, 0x00003000, rtc_mr);
 
     // 0x10010000 Register GPIOs on APB
     IngenicGpio *gpio[6];
