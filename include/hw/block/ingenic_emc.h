@@ -32,7 +32,8 @@ OBJECT_DECLARE_TYPE(IngenicEmc, IngenicEmcClass, INGENIC_EMC)
 
 extern MemoryRegionOps nand_io_ops;
 
-typedef struct IngenicEmcNand IngenicEmcNand;
+typedef struct IngenicEmcNand  IngenicEmcNand;
+typedef struct IngenicEmcSdram IngenicEmcSdram;
 
 typedef struct NandOpData {
     IngenicEmc *emc;
@@ -43,14 +44,15 @@ typedef struct IngenicEmc {
     SysBusDevice parent_obj;
 
     MemoryRegion emc_mr;
+    MemoryRegion emc_sram_mr;
     MemoryRegion origin_mr;
-    MemoryRegion sdram_mr;
     MemoryRegion static_mr[4];
     MemoryRegion nand_io_mr[4];
 
     NandOpData nand_io_data[4];
 
     IngenicEmcNand *nand[4];
+    IngenicEmcSdram *sdram;
 
     // GPIO
     qemu_irq io_nand_rb;
@@ -100,5 +102,33 @@ typedef struct IngenicEmcNandClass
 {
     SysBusDeviceClass parent_class;
 } IngenicEmcNandClass;
+
+// SDRAM
+
+#define TYPE_INGENIC_EMC_SDRAM "ingenic-emc-sdram"
+OBJECT_DECLARE_TYPE(IngenicEmcSdram, IngenicEmcSdramClass, INGENIC_EMC_SDRAM)
+
+typedef struct IngenicEmcSdram {
+    // Class inheritance
+    SysBusDevice parent_obj;
+    // Properties
+    uint32_t size[2];
+    MemoryRegion mr[2];
+    MemoryRegion alias_mr;
+    MemoryRegion sram_mr;
+    MemoryRegion emc_mr;
+    MemoryRegion dmr_mr;
+    // Registers
+    uint32_t dmcr;
+    uint16_t rtcsr;
+    uint16_t rtcnt;
+    uint16_t rtcor;
+    uint16_t dmar[2];
+} IngenicEmcSdram;
+
+typedef struct IngenicEmcSdramClass
+{
+    SysBusDeviceClass parent_class;
+} IngenicEmcSdramClass;
 
 #endif /* INGENIC_EMC_H */

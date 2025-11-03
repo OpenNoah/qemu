@@ -1,5 +1,5 @@
 /*
- * Ingenic External Memory Controller (SDRAM, NAND) emulation
+ * Ingenic External Memory Controller emulation
  *
  * Copyright (c) 2024
  * Written by Norman Zhi <normanzyb@gmail.com>
@@ -143,11 +143,21 @@ static void ingenic_emc_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicEmc *emc = INGENIC_EMC(obj);
 
-    memory_region_init_io(&emc->emc_mr, OBJECT(emc), &emc_ops, emc, "emc", 0x10000);
+    memory_region_init(&emc->emc_mr, NULL, "emc", 0x10000);
     sysbus_init_mmio(sbd, &emc->emc_mr);
+
+    memory_region_init_io(&emc->emc_sram_mr, obj, &emc_ops, emc, "emc.sram", 0x80);
+    memory_region_add_subregion(&emc->emc_mr, 0, &emc->emc_sram_mr);
 
     qdev_init_gpio_out_named(DEVICE(obj), &emc->io_nand_rb, "nand-rb", 1);
     qemu_irq_raise(emc->io_nand_rb);
+
+    emc->sdram = INGENIC_EMC_SDRAM(qdev_new(TYPE_INGENIC_EMC_SDRAM));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(emc->sdram), &error_fatal);
+    memory_region_add_subregion(&emc->emc_mr, 0x80,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 0));
+    memory_region_add_subregion(&emc->emc_mr, 0x8000,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(emc->sdram), 1));
 }
 
 static void ingenic_emc_finalize(Object *obj)
@@ -160,17 +170,6 @@ static void ingenic_emc_realize(DeviceState *dev, Error **errp)
     IngenicEmc *emc = INGENIC_EMC(dev);
     MemoryRegion *sys_mem = get_system_memory();
 
-    // Add SDRAM regions, but disabled for now
-    memory_region_init_ram(&emc->sdram_mr, OBJECT(emc), "sdram",
-                           emc->sdram_size, &error_fatal);
-    memory_region_set_enabled(&emc->sdram_mr, false);
-    memory_region_add_subregion(sys_mem, 0x20000000, &emc->sdram_mr);
-
-    memory_region_init_alias(&emc->origin_mr, OBJECT(emc), "sdram.origin",
-                             &emc->sdram_mr, 0, 0x08000000);
-    memory_region_set_enabled(&emc->origin_mr, false);
-    memory_region_add_subregion(sys_mem, 0x00000000, &emc->origin_mr);
-
     // Add NAND IO regions, but disabled for now
     static const uint32_t nand_bank_addr[] = {
         0x18000000, 0x14000000, 0x0c000000, 0x08000000,
@@ -178,22 +177,16 @@ static void ingenic_emc_realize(DeviceState *dev, Error **errp)
     for (int bank = 0; bank < 4; bank++) {
         emc->nand_io_data[bank].emc = emc;
         memory_region_init_io(&emc->nand_io_mr[bank], OBJECT(emc),
-                              &nand_io_ops, &emc->nand_io_data[bank], "nand.io", 0x00100000);
+                              &nand_io_ops, &emc->nand_io_data[bank], "emc.nand.io", 0x00100000);
         memory_region_set_enabled(&emc->nand_io_mr[bank], false);
         memory_region_add_subregion(sys_mem, nand_bank_addr[bank], &emc->nand_io_mr[bank]);
     }
 }
 
-static Property ingenic_emc_properties[] = {
-    DEFINE_PROP_UINT32("sdram-size", IngenicEmc, sdram_size, 32 * 1024 * 1024),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void ingenic_emc_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     dc->realize = &ingenic_emc_realize;
-    device_class_set_props(dc, ingenic_emc_properties);
 
     IngenicEmcClass *emc_class = INGENIC_EMC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
