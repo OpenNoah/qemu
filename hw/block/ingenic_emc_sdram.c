@@ -28,7 +28,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
@@ -69,13 +69,12 @@ static void ingenic_emc_sdram_finalize(Object *obj)
 {
 }
 
-static Property ingenic_emc_sdram_properties[] = {
+static const Property ingenic_emc_sdram_properties[] = {
     DEFINE_PROP_UINT32("cs", IngenicEmcSdram, cs, 0),
     DEFINE_PROP_UINT32("size", IngenicEmcSdram, size, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_emc_sdram_class_init(ObjectClass *class, void *data)
+static void ingenic_emc_sdram_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_emc_sdram_properties);

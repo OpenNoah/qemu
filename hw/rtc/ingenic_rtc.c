@@ -157,7 +157,7 @@ static void ingenic_rtc_finalize(Object *obj)
 {
 }
 
-static void ingenic_rtc_class_init(ObjectClass *class, void *data)
+static void ingenic_rtc_class_init(ObjectClass *class, const void *data)
 {
     IngenicRtcClass *bch_class = INGENIC_RTC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

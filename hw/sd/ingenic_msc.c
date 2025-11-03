@@ -139,7 +139,7 @@ static void ingenic_msc_start(IngenicMsc *s)
     s->resp_offset = 0;
 
     uint8_t resp[16];
-    int rlen = sdbus_do_command(&s->sdbus, &request, resp);
+    int rlen = sdbus_do_command(&s->sdbus, &request, resp, sizeof(resp));
     switch (rtype) {
     case 0:
         if (rlen != 0)
@@ -436,12 +436,11 @@ static void ingenic_msc_finalize(Object *obj)
 {
 }
 
-static Property ingenic_msc_properties[] = {
+static const Property ingenic_msc_properties[] = {
     DEFINE_PROP_UINT32("model", IngenicMsc, model, 0x4755),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_msc_class_init(ObjectClass *class, void *data)
+static void ingenic_msc_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_msc_properties);

@@ -440,12 +440,11 @@ static void ingenic_tcu_finalize(Object *obj)
     timer_del(&s->ost.tmr.qts);
 }
 
-static Property ingenic_tcu_properties[] = {
+static const Property ingenic_tcu_properties[] = {
     DEFINE_PROP_UINT32("model", IngenicTcu, model, 0x4755),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_tcu_class_init(ObjectClass *class, void *data)
+static void ingenic_tcu_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_tcu_properties);

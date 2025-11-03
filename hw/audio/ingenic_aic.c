@@ -158,7 +158,7 @@ static void ingenic_aic_finalize(Object *obj)
 {
 }
 
-static void ingenic_aic_class_init(ObjectClass *class, void *data)
+static void ingenic_aic_class_init(ObjectClass *class, const void *data)
 {
     IngenicAicClass *bch_class = INGENIC_AIC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

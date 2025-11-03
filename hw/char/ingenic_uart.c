@@ -134,7 +134,7 @@ static void ingenic_uart_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static void ingenic_uart_class_init(ObjectClass *class, void *data)
+static void ingenic_uart_class_init(ObjectClass *class, const void *data)
 {
     IngenicUartClass *idc = INGENIC_UART_CLASS(class);
     DeviceClass *dc = DEVICE_CLASS(class);

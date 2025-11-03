@@ -443,19 +443,18 @@ static void stmpe2403_finalize(Object *obj)
 {
 }
 
-static Property stmpe2403_properties[] = {
+static const Property stmpe2403_properties[] = {
     DEFINE_PROP_UINT32("force-gpio-mask",  Stmpe2403, force_gpio_mask,  0),
     DEFINE_PROP_UINT32("force-gpio-value", Stmpe2403, force_gpio_value, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void stmpe2403_class_init(ObjectClass *klass, void *data)
+static void stmpe2403_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     device_class_set_props(dc, stmpe2403_properties);
-    dc->reset = stmpe2403_reset;
+    dc->legacy_reset = stmpe2403_reset;
     dc->realize = stmpe2403_realize;
     k->event = stmpe2403_i2c_event;
     k->recv = stmpe2403_i2c_rx;

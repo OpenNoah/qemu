@@ -66,10 +66,6 @@ static int wm8731_i2c_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void wm8731_reset(DeviceState *dev)
-{
-}
-
 static void wm8731_realize(DeviceState *dev, Error **errp)
 {
 }
@@ -84,12 +80,11 @@ static void wm8731_finalize(Object *obj)
 {
 }
 
-static void wm8731_class_init(ObjectClass *klass, void *data)
+static void wm8731_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    dc->reset = wm8731_reset;
     dc->realize = wm8731_realize;
     k->event = wm8731_i2c_event;
     k->recv = wm8731_i2c_rx;

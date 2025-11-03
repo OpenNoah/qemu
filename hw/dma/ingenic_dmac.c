@@ -677,12 +677,11 @@ static void ingenic_dmac_finalize(Object *obj)
 {
 }
 
-static Property ingenic_dmac_properties[] = {
+static const Property ingenic_dmac_properties[] = {
     DEFINE_PROP_UINT32("model", IngenicDmac, model, 0x4755),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_dmac_class_init(ObjectClass *class, void *data)
+static void ingenic_dmac_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_dmac_properties);

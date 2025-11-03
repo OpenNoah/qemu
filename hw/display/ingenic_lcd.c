@@ -32,7 +32,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/display/ingenic_lcd.h"
 #include "trace.h"
 
@@ -588,12 +588,11 @@ static void ingenic_lcd_finalize(Object *obj)
     s->mode = 0;
 }
 
-static Property ingenic_lcd_properties[] = {
+static const Property ingenic_lcd_properties[] = {
     DEFINE_PROP_STRING("model", IngenicLcd, model_str),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_lcd_class_init(ObjectClass *class, void *data)
+static void ingenic_lcd_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_lcd_properties);

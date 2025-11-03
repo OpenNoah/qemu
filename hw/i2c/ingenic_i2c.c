@@ -215,7 +215,7 @@ static void ingenic_i2c_finalize(Object *obj)
 {
 }
 
-static void ingenic_i2c_class_init(ObjectClass *class, void *data)
+static void ingenic_i2c_class_init(ObjectClass *class, const void *data)
 {
     IngenicI2cClass *bch_class = INGENIC_I2C_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
