@@ -13,6 +13,9 @@ config FDC_SYSBUS
 config SSI_M25P80
     bool
 
+config INGENIC_EMC
+    bool
+
 config PFLASH_CFI01
     bool
 
