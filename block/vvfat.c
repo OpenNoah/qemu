@@ -1082,6 +1082,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "Make the image writable",
         },
+        {
+            .name = "size",
+            .type = QEMU_OPT_SIZE,
+            .help = "Image size",
+        },
         { /* end of list */ }
     },
 };
@@ -1179,7 +1184,18 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         memcpy(s->volume_label, "QEMU VVFAT", 10);
     }
 
-    if (floppy) {
+    size_t img_size = qemu_opt_get_size(opts, "size", 0);
+
+    if (img_size) {
+        /* Custom size disk*/
+        if (!s->fat_type) {
+            s->fat_type = 32;
+        }
+        s->offset_to_bootsector = 0x3f;
+        heads = 1;
+        secs = 1;
+        cyls = img_size / 512 / heads / secs;
+    } else if (floppy) {
         /* 1.44MB or 2.88MB floppy.  2.88MB can be FAT12 (default) or FAT16. */
         if (!s->fat_type) {
             s->fat_type = 12;
@@ -3246,6 +3262,7 @@ static const char *const vvfat_strong_runtime_opts[] = {
     "floppy",
     "label",
     "rw",
+    "size",
 
     NULL
 };

@@ -3479,11 +3479,13 @@
 #
 # @rw: whether to allow write operations (default: false)
 #
+# @size: size of the device in bytes.
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
-            '*label': 'str', '*rw': 'bool' } }
+            '*label': 'str', '*rw': 'bool', '*size': 'size' } }
 
 ##
 # @BlockdevOptionsGenericFormat:
