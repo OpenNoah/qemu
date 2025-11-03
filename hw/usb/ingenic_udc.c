@@ -162,7 +162,7 @@ static void ingenic_udc_finalize(Object *obj)
 {
 }
 
-static void ingenic_udc_class_init(ObjectClass *class, void *data)
+static void ingenic_udc_class_init(ObjectClass *class, const void *data)
 {
     IngenicUdcClass *bch_class = INGENIC_UDC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

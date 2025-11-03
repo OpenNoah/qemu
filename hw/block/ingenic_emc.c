@@ -27,7 +27,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
@@ -285,7 +285,7 @@ static void ingenic_emc_finalize(Object *obj)
 {
 }
 
-static void ingenic_emc_class_init(ObjectClass *class, void *data)
+static void ingenic_emc_class_init(ObjectClass *class, const void *data)
 {
     IngenicEmcClass *emc_class = INGENIC_EMC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

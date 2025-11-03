@@ -28,7 +28,7 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 
 #define TYPE_INGENIC_UART "ingenic-uart"
 OBJECT_DECLARE_TYPE(IngenicUartState, IngenicUartClass, INGENIC_UART)

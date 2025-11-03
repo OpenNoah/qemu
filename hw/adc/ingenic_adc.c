@@ -350,7 +350,7 @@ static void ingenic_adc_finalize(Object *obj)
     timer_del(&s->ts_timer);
 }
 
-static void ingenic_adc_class_init(ObjectClass *class, void *data)
+static void ingenic_adc_class_init(ObjectClass *class, const void *data)
 {
     IngenicAdcClass *bch_class = INGENIC_ADC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

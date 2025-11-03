@@ -15,6 +15,8 @@ config MALTA
 
 config IRIVER_D88
     bool
+    default y
+    depends on MIPS
     select INGENIC_JZ4755
     select AR1010
     select WM8731
@@ -23,10 +25,14 @@ config IRIVER_D88
 
 config NOAH_NP1380
     bool
+    default y
+    depends on MIPS
     select INGENIC_JZ4740
 
 config GGV_AONE
     bool
+    default y
+    depends on MIPS
     select INGENIC_JZ4720
 
 config INGENIC_JZ4755

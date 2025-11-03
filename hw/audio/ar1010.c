@@ -54,20 +54,15 @@ static int ar1010_i2c_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void ar1010_reset(DeviceState *dev)
-{
-}
-
 static void ar1010_realize(DeviceState *dev, Error **errp)
 {
 }
 
-static void ar1010_class_init(ObjectClass *klass, void *data)
+static void ar1010_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    dc->reset = ar1010_reset;
     dc->realize = ar1010_realize;
     k->event = ar1010_i2c_event;
     k->recv = ar1010_i2c_rx;

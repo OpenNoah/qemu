@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #include "hw/qdev-clock.h"
 #include "hw/mips/mips.h"
@@ -69,7 +69,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     /* Init CPUs. */
     // machine->cpu_type = "XBurstR1-mips-cpu";
-    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"));
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"), false);
     env = &cpu->env;
     soc->cpu = cpu;
 

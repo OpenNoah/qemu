@@ -23,7 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
@@ -191,7 +191,7 @@ static void ingenic_bch_finalize(Object *obj)
 {
 }
 
-static void ingenic_bch_class_init(ObjectClass *class, void *data)
+static void ingenic_bch_class_init(ObjectClass *class, const void *data)
 {
     IngenicBchClass *bch_class = INGENIC_BCH_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

@@ -277,14 +277,13 @@ static void ingenic_cgu_finalize(Object *obj)
 {
 }
 
-static Property ingenic_cgu_properties[] = {
+static const Property ingenic_cgu_properties[] = {
     DEFINE_PROP_UINT32("model", IngenicCgu, model, 0x4755),
     DEFINE_PROP_UINT32("ext-freq", IngenicCgu, ext_freq, 24000000),
     DEFINE_PROP_UINT32("rtc-freq", IngenicCgu, rtc_freq, 32768),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_cgu_class_init(ObjectClass *class, void *data)
+static void ingenic_cgu_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_cgu_properties);

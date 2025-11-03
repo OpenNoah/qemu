@@ -274,17 +274,16 @@ static void d88_matrix_keypad_finalize(Object *obj)
     g_free(s->col_out);
 }
 
-static Property d88_matrix_keypad_properties[] = {
+static const Property d88_matrix_keypad_properties[] = {
     DEFINE_PROP_UINT8("num-rows", D88MatrixKeypad, num_rows,  5),
     DEFINE_PROP_UINT8("num-cols", D88MatrixKeypad, num_cols, 13),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void d88_matrix_keypad_class_init(ObjectClass *klass, void *data)
+static void d88_matrix_keypad_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, d88_matrix_keypad_properties);
     dc->realize = d88_matrix_keypad_realize;
-    dc->reset = d88_matrix_keypad_reset;
+    dc->legacy_reset = d88_matrix_keypad_reset;
     //dc->vmsd = &vmstate_lm_kbd;
 }

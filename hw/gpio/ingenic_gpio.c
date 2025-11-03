@@ -278,14 +278,13 @@ static void ingenic_gpio_finalize(Object *obj)
 {
 }
 
-static Property ingenic_gpio_properties[] = {
+static const Property ingenic_gpio_properties[] = {
     DEFINE_PROP_STRING("name",  IngenicGpio, name),
     DEFINE_PROP_UINT32("pull",  IngenicGpio, pull, 0xffffffff),
     DEFINE_PROP_UINT32("reset", IngenicGpio, reset, 0xffffffff),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_gpio_class_init(ObjectClass *class, void *data)
+static void ingenic_gpio_class_init(ObjectClass *class, const void *data)
 {
     device_class_set_props(DEVICE_CLASS(class), ingenic_gpio_properties);
     IngenicGpioClass *gpio_class = INGENIC_GPIO_CLASS(class);

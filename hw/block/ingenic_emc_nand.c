@@ -23,9 +23,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
+#include "system/address-spaces.h"
+#include "system/block-backend.h"
+#include "system/blockdev.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
@@ -352,17 +352,16 @@ static void ingenic_emc_nand_finalize(Object *obj)
 {
 }
 
-static Property ingenic_emc_nand_properties[] = {
+static const Property ingenic_emc_nand_properties[] = {
     DEFINE_PROP_DRIVE("drive", IngenicEmcNand, blk),
     DEFINE_PROP_UINT32("block-pages", IngenicEmcNand, block_pages, 128),
     DEFINE_PROP_UINT32("page-size", IngenicEmcNand, page_size, 2048),
     DEFINE_PROP_UINT32("oob-size", IngenicEmcNand, oob_size, 64),
     DEFINE_PROP_UINT32("cs", IngenicEmcNand, cs, 1),
     DEFINE_PROP_STRING("nand-id", IngenicEmcNand, nand_id_str),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ingenic_emc_nand_class_init(ObjectClass *class, void *data)
+static void ingenic_emc_nand_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_emc_nand_properties);

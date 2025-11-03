@@ -147,7 +147,7 @@ static void ingenic_intc_finalize(Object *obj)
 {
 }
 
-static void ingenic_intc_class_init(ObjectClass *class, void *data)
+static void ingenic_intc_class_init(ObjectClass *class, const void *data)
 {
     IngenicIntcClass *bch_class = INGENIC_INTC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
