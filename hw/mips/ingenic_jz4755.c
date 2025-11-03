@@ -43,6 +43,7 @@
 #include "hw/block/ingenic_bch.h"
 #include "hw/gpio/ingenic_gpio.h"
 #include "hw/char/ingenic_uart.h"
+#include "hw/adc/ingenic_adc.h"
 
 MIPSCPU *ingenic_jz4755_init(MachineState *machine)
 {
@@ -59,13 +60,13 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk-cclk"));
     env = &cpu->env;
 
-    // Internal SRAM, 16kB
+    // 0x80000000 Internal SRAM, 16kB
     MemoryRegion *sys_mem = get_system_memory();
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     memory_region_init_ram(sram, NULL, "sram", 16 * 1024, &error_fatal);
     memory_region_add_subregion(sys_mem, 0x80000000, sram);
 
-    // TCSM SRAM, 16kB
+    // 0xf4000000 TCSM SRAM, 16kB
     MemoryRegion *tcsm = g_new(MemoryRegion, 1);
     memory_region_init_ram(tcsm, NULL, "tcsm", 16 * 1024, &error_fatal);
     memory_region_add_subregion(sys_mem, 0xf4000000, tcsm);
@@ -74,35 +75,35 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
     MemoryRegion *ahb1 = g_new(MemoryRegion, 1);
     MemoryRegion *apb  = g_new(MemoryRegion, 1);
 
-    /* Register AHB0 IO space at 0x13000000. */
+    // Register AHB0 IO space at 0x13000000
     memory_region_init(ahb0, NULL, "ahb0", 0x00090000);
     memory_region_add_subregion(sys_mem, 0x13000000, ahb0);
 
-    // Register EMC on AHB0 bus
+    // 0x13010000 Register EMC on AHB0
     IngenicEmc *emc = INGENIC_EMC(qdev_new(TYPE_INGENIC_EMC));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(emc), &error_fatal);
     MemoryRegion *emc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(emc), 0);
     memory_region_add_subregion(ahb0, 0x00010000, emc_mr);
 
-    /* Register AHB1 IO space at 0x13090000. */
+    // Register AHB1 IO space at 0x13090000
     memory_region_init(ahb1, NULL, "ahb1", 0x00070000);
     memory_region_add_subregion(sys_mem, 0x13090000, ahb1);
 
-    // Register BCH on AHB1 bus
+    // 0x130d0000 Register BCH on AHB1
     IngenicBch *bch = INGENIC_BCH(qdev_new(TYPE_INGENIC_BCH));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(bch), &error_fatal);
     MemoryRegion *bch_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(bch), 0);
     memory_region_add_subregion(ahb1, 0x00040000, bch_mr);
 
-    /* Register APB IO space at 0x10000000. */
+    // Register APB IO space at 0x10000000
     memory_region_init(apb, NULL, "apb", 0x01000000);
     memory_region_add_subregion(sys_mem, 0x10000000, apb);
 
-    /* Register CGU on APB bus */
+    // 0x10000000 Register CGU on APB
     MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
 
-    // Register GPIOs on APB bus
+    // 0x10010000 Register GPIOs on APB
     IngenicGpio *gpio[6];
     for (int i = 0; i < 6; i++) {
         char name[] = "PA";
@@ -114,17 +115,23 @@ MIPSCPU *ingenic_jz4755_init(MachineState *machine)
         memory_region_add_subregion(apb, 0x00010000 + i * 0x0100, gpio_mr);
     }
 
-    /* Initialise 16550 UART0 at APB 0x00030000 interrupt ? */
+    // 0x10030000 Register 16550 UART0 on APB
     ingenic_uart_init(apb, 0x00030000, env->irq[4],
         115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
-    /* Initialise 16550 UART1 at APB 0x00031000 interrupt ? */
+    // 0x10031000 Register 16550 UART1 on APB
     ingenic_uart_init(apb, 0x00031000, env->irq[5],
         115200, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 
-    /* Initialise 16550 UART2 at APB 0x00032000 interrupt ? */
+    // 0x10032000 Register 16550 UART2 on APB
     ingenic_uart_init(apb, 0x00032000, env->irq[6],
         115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
+
+    // 0x10070000 Register ADC on APB bus
+    IngenicAdc *adc = INGENIC_ADC(qdev_new(TYPE_INGENIC_ADC));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(adc), &error_fatal);
+    MemoryRegion *adc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(adc), 0);
+    memory_region_add_subregion(apb, 0x00070000, adc_mr);
 
     /* Init CPU internal devices. */
     cpu_mips_irq_init_cpu(cpu);
