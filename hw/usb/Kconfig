@@ -53,6 +53,10 @@ config USB_XHCI_SYSBUS
     bool
     select USB_XHCI
 
+config USB_MUSB
+    bool
+    select USB
+
 config USB_DWC2
     bool
     select USB
