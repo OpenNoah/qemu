@@ -40,3 +40,6 @@ config STMPE2403
 
 config D88_MATRIX_KEYPAD
     bool
+
+config GPIO_MATRIX_KEYPAD
+    bool
