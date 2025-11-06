@@ -35,6 +35,7 @@ config NOAH_NP1380
     default y
     depends on MIPS
     select INGENIC_JZ4740
+    select GPIO_MATRIX_KEYPAD
 
 config GGV_AONE
     bool
