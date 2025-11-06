@@ -69,3 +69,10 @@ d88_matrix_keypad_row_out(int n, int level) "n=%d level=%d"
 d88_matrix_keypad_col_out(int n, int level) "n=%d level=%d"
 d88_matrix_keypad_event(int down, int qcode, int row, int col) "down=%d qcode=%d row=%d col=%d"
 d88_matrix_keypad_state(uint32_t rw, uint32_t rwv, uint32_t rsv, uint32_t cw, uint32_t cwv, uint32_t csv) "row(weak=0x%08x wv=0x%08x sv=0x%08x) col(weak=0x%08x wv=0x%08x sv=0x%08x)"
+
+# gpio_matrix_keypad.c
+gpio_matrix_keypad_map(int row, int col, const char *key) "%dx%d maps to \"%s\""
+gpio_matrix_keypad_row_in(int n, const char *level) "n=%d level=%s"
+gpio_matrix_keypad_col_in(int n, const char *level) "n=%d level=%s"
+gpio_matrix_keypad_out(const char *name, int pin, const char *level) "%s pin=%d level=%s"
+gpio_matrix_keypad_event(const char *qcode, int down, int row, int col) "qcode=%s down=%d row=%d col=%d"
