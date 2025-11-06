@@ -53,6 +53,18 @@
 
 void qmp_stop(Error **errp);
 
+const QEnumLookup IngenicGpioLevel_lookup = {
+    .array = (const char *const[]) {
+        [INGENIC_GPIO_LEVEL_LOW] = "0",
+        [INGENIC_GPIO_LEVEL_HIGH] = "1",
+        [INGENIC_GPIO_LEVEL_PULL_LOW] = "~0",
+        [INGENIC_GPIO_LEVEL_PULL_HIGH] = "~1",
+        [INGENIC_GPIO_LEVEL_FLOATING] = "z",
+    },
+    .size = INGENIC_GPIO_LEVEL__MAX
+};
+
+
 static void ingenic_gpio_reset(Object *obj, ResetType type)
 {
     IngenicGpio *gpio = INGENIC_GPIO(obj);
@@ -65,6 +77,49 @@ static void ingenic_gpio_reset(Object *obj, ResetType type)
     gpio->dir = 0x00000000;
     gpio->trg = 0x00000000;
     gpio->flg = 0x00000000;
+
+    gpio->prev_floating = 0xffffffff;
+    gpio->prev_pull = 0;
+    gpio->prev_out = 0;
+    for (int i = 0; i < 32; i++)
+        qemu_set_irq(gpio->output[i], INGENIC_GPIO_LEVEL_FLOATING);
+}
+
+static void ingenic_gpio_update_out(IngenicGpio *s)
+{
+    uint32_t floating = 0;
+    uint32_t pull = 0;
+    uint32_t out = 0;
+
+    // Treat alternate function as floating
+    floating |= s->fun;
+    // Input mode with pull disabled
+    floating |= ~s->fun & ~s->dir & ~s->pe;
+    // Input mode with pull enabled
+    pull |= ~s->fun & ~s->dir & s->pe;
+    out |= ~s->fun & ~s->dir & s->pe & s->pull;
+    // Output mode
+    out |= ~s->fun & s->dir & s->dat;
+
+    uint32_t delta = (floating ^ s->prev_floating) | (pull ^ s->prev_pull) | (out ^ s->prev_out);
+    s->prev_floating = floating;
+    s->prev_pull = pull;
+    s->prev_out = out;
+
+    if (delta) {
+        trace_ingenic_gpio_out(s->name, floating, pull, out);
+        for (int i = 0; i < 32; i++) {
+            uint32_t mask = 1ul << i;
+            if (delta & mask) {
+                int level = INGENIC_GPIO_LEVEL_FLOATING;
+                if (~floating & pull & mask)
+                    level = (out & mask) ? INGENIC_GPIO_LEVEL_PULL_HIGH : INGENIC_GPIO_LEVEL_PULL_LOW;
+                else if (~floating & ~pull & mask)
+                    level = (out & mask) ? INGENIC_GPIO_LEVEL_HIGH : INGENIC_GPIO_LEVEL_LOW;
+                qemu_set_irq(s->output[i], level);
+            }
+        }
+    }
 }
 
 static void ingenic_gpio_update_irq(IngenicGpio *s, uint32_t prev_pin)
@@ -108,13 +163,6 @@ static uint64_t ingenic_gpio_read(void *opaque, hwaddr addr, unsigned size)
     switch (aligned_addr) {
     case REG_PAPIN:
         data = gpio->pin;
-        {
-            uint32_t to_raise = gpio->pending_raise & ~gpio->pin;
-            uint32_t to_fall = gpio->pending_fall & gpio->pin;
-            gpio->pin = (gpio->pin | to_raise) & ~to_fall;
-            gpio->pending_raise &= ~to_raise;
-            gpio->pending_fall &= ~to_fall;
-        }
         break;
     case REG_PADAT:
         data = gpio->dat;
@@ -232,6 +280,7 @@ static void ingenic_gpio_write(void *opaque, hwaddr addr, uint64_t data, unsigne
     trace_ingenic_gpio_config(gpio->name, gpio->im, gpio->fun, gpio->sel, gpio->dir);
     trace_ingenic_gpio_status(gpio->name, gpio->pin, gpio->dat, gpio->flg);
     ingenic_gpio_update_irq(gpio, gpio->pin);
+    ingenic_gpio_update_out(gpio);
 }
 
 static MemoryRegionOps ingenic_gpio_ops = {
@@ -244,15 +293,13 @@ static void ingenic_gpio_input_irq(void *opaque, int n, int level)
 {
     IngenicGpio *gpio = opaque;
     trace_ingenic_gpio_in(gpio->name, n, level);
+    // Treat floating as 1
+    int high = level != INGENIC_GPIO_LEVEL_LOW && level != INGENIC_GPIO_LEVEL_PULL_LOW;
     uint32_t mask = 1 << n;
-    uint32_t val = level << n;
+    uint32_t val = high << n;
     // Update pin state
     uint32_t pin = gpio->pin;
     gpio->pin = (gpio->pin & ~mask) | val;
-    if (level)
-        gpio->pending_raise |= mask;
-    else
-        gpio->pending_fall |= mask;
     ingenic_gpio_update_irq(gpio, pin);
     trace_ingenic_gpio_status(gpio->name, gpio->pin, gpio->dat, gpio->flg);
 }

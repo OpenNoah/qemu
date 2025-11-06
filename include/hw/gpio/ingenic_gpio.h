@@ -23,6 +23,21 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+
+typedef enum IngenicGpioLevel {
+    INGENIC_GPIO_LEVEL_LOW = 0,
+    INGENIC_GPIO_LEVEL_HIGH,
+    INGENIC_GPIO_LEVEL_PULL_LOW,
+    INGENIC_GPIO_LEVEL_PULL_HIGH,
+    INGENIC_GPIO_LEVEL_FLOATING,
+    INGENIC_GPIO_LEVEL__MAX,
+} IngenicGpioLevel;
+
+extern const QEnumLookup IngenicGpioLevel_lookup;
+
+#define IngenicGpioLevel_str(val) qapi_enum_lookup(&IngenicGpioLevel_lookup, (val))
+
+
 #define TYPE_INGENIC_GPIO "ingenic-gpio"
 OBJECT_DECLARE_TYPE(IngenicGpio, IngenicGpioClass, INGENIC_GPIO)
 
@@ -40,9 +55,10 @@ typedef struct IngenicGpio {
     char *name;
     uint32_t pull;
     uint32_t reset;
-    uint32_t pending_raise;
-    uint32_t pending_fall;
     int prev_irq_level;
+    uint32_t prev_floating;
+    uint32_t prev_pull;
+    uint32_t prev_out;
 
     // Registers
     uint32_t pin;
