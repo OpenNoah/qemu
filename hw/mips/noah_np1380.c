@@ -42,6 +42,7 @@
 
 #include "hw/mips/ingenic_jz4740.h"
 #include "hw/block/ingenic_emc.h"
+#include "hw/input/gpio_matrix_keypad.h"
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -122,12 +123,51 @@ static void mips_noah_np1380_init(MachineState *machine)
     qdev_connect_gpio_out_named(DEVICE(soc->msc), "io-cd", 0,
         qdev_get_gpio_in_named(DEVICE(soc->gpio['B' - 'A']), "gpio-in", 27));
 
+    // Keypad matrix
+    GpioMatrixKeypad *kp = GPIO_MATRIX_KEYPAD(qdev_new(TYPE_GPIO_MATRIX_KEYPAD));
+    // Extra row+col used to implement power key
+    // TODO implement proper GPIO keypad
+    object_property_set_uint(OBJECT(kp), "num-rows", 3 + 1, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "num-cols", 4 + 1, &error_fatal);
+    // Attach pull-ups to all rows and cols
+    object_property_set_uint(OBJECT(kp), "row-pull", 0xfffffff7, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "row-pull-value", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "col-pull", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffef, &error_fatal);
+    qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
+
+    // Keypad IO connections
+    const struct {
+        bool row;
+        char group;
+        uint8_t pin;
+    } kp_ios[] = {
+        { true, 'D',  2},   // LT7
+        { true, 'D',  3},   // LT6
+        { true, 'D',  7},   // RT7
+        {false, 'D',  1},   // LT3/RT4
+        {false, 'D', 17},   // LT4/RT5
+        {false, 'D', 15},   // LT5/RT6
+        {false, 'D',  0},   // RT3
+    };
+    int i_row = 0, i_col = 0;
+    for (int i = 0; i < ARRAY_SIZE(kp_ios); i++) {
+        const char *name = kp_ios[i].row ? "row-in" : "col-in";
+        int *pi_kp = kp_ios[i].row ? &i_row : &i_col;
+        qemu_irq irq = qdev_get_gpio_in_named(DEVICE(kp), name, *pi_kp);
+        qdev_connect_gpio_out_named(DEVICE(soc->gpio[kp_ios[i].group - 'A']), "gpio-out", kp_ios[i].pin, irq);
+        name = kp_ios[i].row ? "row-out" : "col-out";
+        irq = qdev_get_gpio_in_named(DEVICE(soc->gpio[kp_ios[i].group - 'A']), "gpio-in", kp_ios[i].pin);
+        qdev_connect_gpio_out_named(DEVICE(kp), name, *pi_kp, irq);
+        *pi_kp += 1;
+    }
+
     // PC23: LCD select, 0: KD035G6, 1: PT035TN01_V5
     qemu_irq lcd_sel = qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 23);
     qemu_irq_raise(lcd_sel);
     // PD29: POWER key, 0: pressed
     qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 29);
-    qemu_irq_raise(power_key);
+    qdev_connect_gpio_out_named(DEVICE(kp), "row-out", 3, power_key);
 }
 
 static void mips_noah_np1380_machine_init(MachineClass *mc)
