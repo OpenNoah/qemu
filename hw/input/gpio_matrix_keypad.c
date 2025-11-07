@@ -43,8 +43,10 @@ static void send_pin_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *io, int pin)
 static void gpio_matrix_keypad_reset(Object *obj, ResetType type)
 {
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(obj);
-    for (int row = 0; row < s->row.num_pins; row++)
-        s->row_col_map[row] = 0;
+    for (int row = 0; row < s->row.num_pins; row++) {
+        s->btn_hold_map[row] = 0;
+        s->btn_press_map[row] = 0;
+    }
     s->row.floating = ~s->row.ext_pull;
     s->row.pull = s->row.ext_pull;
     s->row.value = s->row.ext_pull_value;
@@ -103,7 +105,8 @@ static bool update_pin_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *io, int pi
     return false;
 }
 
-static void update_matrix_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *src, GpioMatrixKeypadIO *dst, int src_is_row)
+static void update_matrix_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *src, GpioMatrixKeypadIO *dst,
+    bool src_is_row, bool active_poll)
 {
     for (int idst = 0; idst < dst->num_pins; idst++) {
         // Skip strong-driven pins
@@ -113,10 +116,15 @@ static void update_matrix_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *src, Gp
         // Check for pressed buttons
         uint32_t src_btn_mask = 0;
         if (src_is_row) {
-            for (int row = 0; row < src->num_pins; row++)
-                src_btn_mask |= (s->row_col_map[row] & dst_mask) ? (1ul << row) : 0;
+            for (int row = 0; row < src->num_pins; row++) {
+                src_btn_mask |= (s->btn_hold_map[row] & dst_mask) ? (1ul << row) : 0;
+                if (active_poll)
+                    src_btn_mask |= (s->btn_press_map[row] & dst_mask) ? (1ul << row) : 0;
+            }
         } else {
-            src_btn_mask = s->row_col_map[idst];
+            src_btn_mask = s->btn_hold_map[idst];
+            if (active_poll)
+                src_btn_mask = s->btn_press_map[idst];
         }
         // Check for new output level
         int dst_level = INGENIC_GPIO_LEVEL_FLOATING;
@@ -154,6 +162,23 @@ static void update_matrix_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *src, Gp
         trace_gpio_matrix_keypad_out(dst->name, idst, IngenicGpioLevel_str(dst_level));
         qemu_set_irq(dst->irq[idst], dst_level);
     }
+    // Clear button presses on strongly driven src lines
+    if (active_poll) {
+        uint32_t src_mask = (1ul << src->num_pins) - 1;
+        uint32_t src_strong = src_mask & ~src->floating & ~src->pull;
+        if (src_strong) {
+            for (int isrc = 0; isrc < src->num_pins; isrc++) {
+                if (src_strong & (1ul << isrc)) {
+                    if (src_is_row) {
+                        s->btn_press_map[isrc] = 0;
+                    } else {
+                        for (int row = 0; row < dst->num_pins; row++)
+                            s->btn_press_map[row] &= ~(1ul << isrc);
+                    }
+                }
+            }
+        }
+    }
 }
 
 static void gpio_matrix_keypad_row_in(void *opaque, int n, int level)
@@ -161,7 +186,7 @@ static void gpio_matrix_keypad_row_in(void *opaque, int n, int level)
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(opaque);
     trace_gpio_matrix_keypad_row_in(n, IngenicGpioLevel_str(level));
     if (update_pin_state(s, &s->row, n, level))
-        update_matrix_state(s, &s->row, &s->col, true);
+        update_matrix_state(s, &s->row, &s->col, true, true);
 }
 
 static void gpio_matrix_keypad_col_in(void *opaque, int n, int level)
@@ -169,7 +194,7 @@ static void gpio_matrix_keypad_col_in(void *opaque, int n, int level)
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(opaque);
     trace_gpio_matrix_keypad_col_in(n, IngenicGpioLevel_str(level));
     if (update_pin_state(s, &s->col, n, level))
-        update_matrix_state(s, &s->col, &s->row, false);
+        update_matrix_state(s, &s->col, &s->row, false, true);
 }
 
 static void gpio_matrix_keypad_event(DeviceState *dev, QemuConsole *src, InputEvent *evt)
@@ -193,16 +218,18 @@ key_found:
     {
         // Ignore auto-repeat
         uint32_t col_mask = 1ul << col;
-        uint32_t value = s->row_col_map[row] & col_mask;
+        uint32_t value = s->btn_hold_map[row] & col_mask;
         if (!down == !value)
             return;
     }
 
     // Update IO outputs
     trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, row, col);
-    s->row_col_map[row] ^= 1ul << col;
-    update_matrix_state(s, &s->row, &s->col, true);
-    update_matrix_state(s, &s->col, &s->row, false);
+    s->btn_hold_map[row] ^= 1ul << col;
+    if (down)
+        s->btn_press_map[row] |= 1ul << col;
+    update_matrix_state(s, &s->row, &s->col, true, false);
+    update_matrix_state(s, &s->col, &s->row, false, false);
 }
 
 static const QemuInputHandler gpio_matrix_keypad_handler = {
@@ -295,7 +322,8 @@ static void gpio_matrix_keypad_realize(DeviceState *dev, Error **errp)
     else
         gpio_matrix_keypad_load_keymap_file(s, s->map_file);
 
-    s->row_col_map = g_new0(uint32_t, s->row.num_pins);
+    s->btn_hold_map = g_new0(uint32_t, s->row.num_pins);
+    s->btn_press_map = g_new0(uint32_t, s->row.num_pins);
     gpio_matrix_keypad_reset(OBJECT(dev), RESET_TYPE_COLD);
 
     qemu_input_handler_register(dev, &gpio_matrix_keypad_handler);
@@ -313,7 +341,8 @@ static void gpio_matrix_keypad_init(Object *obj)
 static void gpio_matrix_keypad_finalize(Object *obj)
 {
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(obj);
-    g_free(s->row_col_map);
+    g_free(s->btn_press_map);
+    g_free(s->btn_hold_map);
     g_free(s->key_map);
     g_free(s->col.irq);
     g_free(s->row.irq);

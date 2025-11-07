@@ -44,7 +44,8 @@ typedef struct GpioMatrixKeypad
     GpioMatrixKeypadIO row, col;
     char *map_file;
     QKeyCode *key_map;
-    uint32_t *row_col_map;
+    uint32_t *btn_hold_map;
+    uint32_t *btn_press_map;
 } GpioMatrixKeypad;
 
 typedef struct GpioMatrixKeypadClass
