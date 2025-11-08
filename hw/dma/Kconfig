@@ -33,3 +33,5 @@ config XLNX_CSU_DMA
 
 config INGENIC_DMAC
     bool
+    select INGENIC_MSC
+    select INGENIC_AIC
