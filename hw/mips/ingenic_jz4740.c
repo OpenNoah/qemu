@@ -283,10 +283,12 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(uhc), 0, uhc_irq);
 
     // Connect DMA requests
+    qdev_connect_gpio_out_named(DEVICE(aic), "dma-tx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_AIC_TX));
     qdev_connect_gpio_out_named(DEVICE(msc), "dma-tx-req", 0,
-        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 26));
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC0_TX));
     qdev_connect_gpio_out_named(DEVICE(msc), "dma-rx-req", 0,
-        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 27));
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC0_RX));
 
 #if 0
     // Connect DMA requests
