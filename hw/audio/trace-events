@@ -64,6 +64,9 @@ ar1010_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"
 # ingenic_aic.c
 ingenic_aic_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
 ingenic_aic_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_aic_aiccr(uint32_t reg, int out_bps, int in_bps, int mono, int play, int rec) "AICCR=0x%x out_bps=%d in_bps=%d mono=%d play=%d rec=%d"
+ingenic_aic_cdccr2(uint32_t reg, int srate, int hp_gain, int ain_gain_x10, int mic_gain) "CDCCR2=0x%x srate=%d hp_gain=%ddB ain_gain=%d/10dB mic_gain=%ddB"
+ingenic_aic_pcm_sample(int32_t avail, uint32_t written) "avail=%d written=%d"
 
 # wm8731.c
 wm8731_i2c_event(const char *ev, uint8_t value) "%s: 0x%02x"

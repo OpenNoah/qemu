@@ -25,21 +25,25 @@
 #ifndef INGENIC_AIC_H
 #define INGENIC_AIC_H
 
-#include "hw/sysbus.h"
 #include "qom/object.h"
+#include "hw/sysbus.h"
+#include "hw/irq.h"
+#include "audio/audio.h"
 
 #define TYPE_INGENIC_AIC "ingenic-aic"
 OBJECT_DECLARE_TYPE(IngenicAic, IngenicAicClass, INGENIC_AIC)
 
 typedef struct IngenicAic
 {
-    /* <private> */
     SysBusDevice parent_obj;
-
-    /* <public> */
     MemoryRegion mr;
 
-    // Registers
+    QEMUSoundCard card;
+    union {
+        SWVoiceIn *in;
+        SWVoiceOut *out;
+    } voice;
+
     struct {
         uint16_t aicfr;
         uint32_t aiccr;
@@ -49,6 +53,17 @@ typedef struct IngenicAic
         uint32_t cdccr1;
         uint32_t cdccr2;
     } reg;
+
+    int srate;
+
+    struct {
+        qemu_irq dma_req;
+        int bitw;
+
+        uint32_t fifo_wptr;
+        uint32_t fifo_rptr;
+        int32_t fifo[2048];
+    } in, out;
 } IngenicAic;
 
 typedef struct IngenicAicClass
@@ -56,5 +71,7 @@ typedef struct IngenicAicClass
     SysBusDeviceClass parent_class;
     ResettablePhases parent_phases;
 } IngenicAicClass;
+
+uint32_t ingenic_aic_dma_tx_available(IngenicAic *s);
 
 #endif /* INGENIC_AIC_H */
