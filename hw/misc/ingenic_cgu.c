@@ -99,7 +99,7 @@ static void ingenic_cgu_update_clocks(IngenicCgu *s)
         pcs_period *= 2;
     clock_update(s->clk_lcdpix, pcs_period * (s->LPCDR & 0x07ff));
 
-    qemu_log("%s: cclk freq %"PRIu32"\n", __func__, clock_get_hz(s->clk_cclk));
+    trace_ingenic_cgu_cclk_freq(clock_get_hz(s->clk_cclk));
 }
 
 static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
@@ -138,7 +138,7 @@ static uint64_t ingenic_cgu_read(void *opaque, hwaddr addr, unsigned size)
         qmp_stop(NULL);
     }
     //data = (data >> (8 * (addr & 3))) & ((1LL << (8 * size)) - 1);
-    qemu_log("CGU read @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    trace_ingenic_cgu_read(addr, data, size);
     return data;
 }
 
@@ -153,7 +153,7 @@ static void ingenic_cgu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
 
     IngenicCgu *cgu = opaque;
     hwaddr aligned_addr = addr; // & ~3;
-    qemu_log("CGU write @ " HWADDR_FMT_plx "/%"PRIx32": 0x%"PRIx64"\n", addr, (uint32_t)size, data);
+    trace_ingenic_cgu_write(addr, data, size);
     switch (aligned_addr) {
     case 0x00:
         cgu->CPCCR = data & 0xffefffff;
@@ -216,7 +216,6 @@ static const ClockPortInitArray cgu_clks = {
 
 static void ingenic_cgu_init(Object *obj)
 {
-    printf("%s enter\n", __func__);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     IngenicCgu *s = INGENIC_CGU(obj);
 
@@ -236,7 +235,6 @@ static void ingenic_cgu_realize(DeviceState *dev, Error **errp)
 
 static void ingenic_cgu_finalize(Object *obj)
 {
-    printf("%s enter\n", __func__);
 }
 
 static Property ingenic_cgu_properties[] = {
