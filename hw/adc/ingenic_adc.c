@@ -27,8 +27,8 @@
 #include "qemu/module.h"
 #include "migration/vmstate.h"
 #include "ui/console.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
 #include "hw/adc/ingenic_adc.h"
 #include "trace.h"
 

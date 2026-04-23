@@ -26,7 +26,7 @@
 #define INGENIC_UDC_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/usb/hcd-musb.h"
 
 #define INGENIC_UDC_MAX_DMA_CHANNELS    8

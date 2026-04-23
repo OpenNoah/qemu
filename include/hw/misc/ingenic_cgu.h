@@ -20,8 +20,8 @@
 #ifndef INGENIC_CGU_H
 #define INGENIC_CGU_H
 
-#include "hw/sysbus.h"
-#include "hw/clock.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/clock.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_CGU "ingenic-cgu"

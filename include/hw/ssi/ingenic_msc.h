@@ -26,8 +26,8 @@
 #define INGENIC_MSC_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
 #include "hw/sd/sd.h"
 
 #define TYPE_INGENIC_MSC "ingenic-msc"

@@ -21,7 +21,6 @@
 #define HW_INPUT_GPIO_MATRIX_KEYPAD_H
 
 #include "qom/object.h"
-#include "hw/qdev-core.h"
 #include "ui/input.h"
 
 #define TYPE_GPIO_MATRIX_KEYPAD "gpio-matrix-keypad"

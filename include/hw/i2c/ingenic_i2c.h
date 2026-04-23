@@ -25,7 +25,7 @@
 #ifndef INGENIC_I2C_H
 #define INGENIC_I2C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 

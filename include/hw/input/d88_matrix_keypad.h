@@ -21,7 +21,6 @@
 #define HW_INPUT_D88_MATRIX_KEYPAD_H
 
 #include "qom/object.h"
-#include "hw/qdev-core.h"
 
 #define TYPE_D88_MATRIX_KEYPAD "d88_matrix_keypad"
 OBJECT_DECLARE_TYPE(D88MatrixKeypad, D88MatrixKeypadClass, D88_MATRIX_KEYPAD)

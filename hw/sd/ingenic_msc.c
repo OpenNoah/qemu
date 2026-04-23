@@ -26,7 +26,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ssi/ingenic_msc.h"
 #include "trace.h"
 

@@ -25,8 +25,8 @@
 #ifndef INGENIC_INTC_H
 #define INGENIC_INTC_H
 
-#include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_INTC "ingenic-intc"

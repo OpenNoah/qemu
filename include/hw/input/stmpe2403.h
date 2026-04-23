@@ -21,7 +21,7 @@
 #define HW_INPUT_STMPE2403_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i2c/i2c.h"
 
 // STMPE2403 I2C device address can be 0x42, 0x43, 0x44, 0x45

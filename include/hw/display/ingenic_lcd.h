@@ -28,7 +28,7 @@
 #include "qom/object.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_INGENIC_LCD "ingenic-lcd"
 OBJECT_DECLARE_TYPE(IngenicLcd, IngenicLcdClass, INGENIC_LCD)

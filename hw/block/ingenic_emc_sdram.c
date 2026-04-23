@@ -24,13 +24,13 @@
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/block/ingenic_emc.h"
 
 #define REG_DMCR    0x80

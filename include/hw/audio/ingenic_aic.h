@@ -26,9 +26,9 @@
 #define INGENIC_AIC_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "audio/audio.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
+#include "qemu/audio.h"
 
 #define TYPE_INGENIC_AIC "ingenic-aic"
 OBJECT_DECLARE_TYPE(IngenicAic, IngenicAicClass, INGENIC_AIC)
@@ -38,7 +38,7 @@ typedef struct IngenicAic
     SysBusDevice parent_obj;
     MemoryRegion mr;
 
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     union {
         SWVoiceIn *in;
         SWVoiceOut *out;

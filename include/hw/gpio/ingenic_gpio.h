@@ -20,7 +20,7 @@
 #ifndef INGENIC_GPIO_H
 #define INGENIC_GPIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 

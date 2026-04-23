@@ -26,7 +26,7 @@
 #define INGENIC_ADC_H
 
 #include "qemu/timer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_ADC "ingenic-adc"

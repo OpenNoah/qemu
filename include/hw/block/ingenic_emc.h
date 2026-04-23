@@ -21,7 +21,7 @@
 #ifndef INGENIC_EMC_H
 #define INGENIC_EMC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/block/block.h"
 

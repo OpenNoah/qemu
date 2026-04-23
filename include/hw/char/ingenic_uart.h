@@ -25,7 +25,7 @@
 #ifndef INGENIC_UART_H
 #define INGENIC_UART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 #include "hw/char/serial-mm.h"

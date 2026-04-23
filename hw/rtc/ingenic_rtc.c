@@ -27,7 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/rtc/ingenic_rtc.h"
 #include "trace.h"
 

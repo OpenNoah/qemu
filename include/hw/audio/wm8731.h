@@ -21,7 +21,7 @@
 #define HW_INPUT_WM8731_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i2c/i2c.h"
 
 // WM8731 I2C device address can be 0x1a, 0x1b

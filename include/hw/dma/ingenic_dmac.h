@@ -26,7 +26,7 @@
 #define INGENIC_DMAC_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define INGENIC_DMAC_NUM_DMAC   2
 #define INGENIC_DMAC_NUM_CH     6

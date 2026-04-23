@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -69,7 +69,7 @@ static void ingenic_aic_reset(Object *obj, ResetType type)
     s->reg.cdccr1 = 0x001b2302;
     s->reg.cdccr2 = 0x00170803;
 
-    AUD_set_active_out(s->voice.out, false);
+    audio_be_set_active_out(s->audio_be, s->voice.out, false);
 
     s->srate = 0;
     s->out.bitw = 0;
@@ -101,7 +101,7 @@ static void ingenic_aic_pcm_out_cb(void *opaque, int available)
         size += 4;
         s->out.fifo_rptr = (s->out.fifo_rptr + 1) % ARRAY_SIZE(s->out.fifo);
     }
-    AUD_write(s->voice.out, &buffer[0], size);
+    audio_be_write(s->audio_be, s->voice.out, &buffer[0], size);
     if (size) {
         trace_ingenic_aic_pcm_sample(available, size);
         qemu_irq_raise(s->out.dma_req);
@@ -131,26 +131,26 @@ static void ingenic_aic_aiccr_update(IngenicAic *s, uint32_t data)
 
     if (data & (1 << 8)) {
         // FIFO flush
-        AUD_set_active_out(s->voice.out, false);
+        audio_be_set_active_out(s->audio_be, s->voice.out, false);
         s->out.fifo_rptr = 0;
         s->out.fifo_wptr = 0;
     }
 
     if (play) {
-        if (!AUD_is_active_out(s->voice.out)) {
+        if (!audio_be_is_active_out(s->audio_be, s->voice.out)) {
             audsettings as;
             as.nchannels = MIN(AUDIO_MAX_CHANNELS, 2);
             as.fmt = AUDIO_FORMAT_S32;
             as.freq = s->srate;
-            as.endianness = 0;
-            s->voice.out = AUD_open_out(&s->card, s->voice.out,
-                TYPE_INGENIC_AIC ".out", s, &ingenic_aic_pcm_out_cb, &as);
-            AUD_set_volume_out(s->voice.out, 0, 255, 255);
-            AUD_set_active_out(s->voice.out, true);
+            as.big_endian = false;
+            s->voice.out = audio_be_open_out(s->audio_be, s->voice.out,
+                            TYPE_INGENIC_AIC ".out", s, &ingenic_aic_pcm_out_cb, &as);
+            audio_be_set_volume_out_lr(s->audio_be, s->voice.out, 0, 255, 255);
+            audio_be_set_active_out(s->audio_be, s->voice.out, true);
         }
     } else {
-        if (AUD_is_active_out(s->voice.out)) {
-            AUD_set_active_out(s->voice.out, false);
+        if (audio_be_is_active_out(s->audio_be, s->voice.out)) {
+            audio_be_set_active_out(s->audio_be, s->voice.out, false);
         }
     }
 }
@@ -269,7 +269,7 @@ static void ingenic_aic_init(Object *obj)
 static void ingenic_aic_realize(DeviceState *dev, Error **errp)
 {
     IngenicAic *s = INGENIC_AIC(dev);
-    if (!AUD_register_card(TYPE_INGENIC_AIC, &s->card, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 }
@@ -278,10 +278,15 @@ static void ingenic_aic_finalize(Object *obj)
 {
 }
 
+static const Property ingenic_aic_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(IngenicAic, audio_be),
+};
+
 static void ingenic_aic_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    device_class_set_props(dc, ingenic_aic_properties);
     dc->realize = &ingenic_aic_realize;
 
     IngenicAicClass *bch_class = INGENIC_AIC_CLASS(class);

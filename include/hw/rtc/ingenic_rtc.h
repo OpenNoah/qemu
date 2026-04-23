@@ -25,7 +25,7 @@
 #ifndef INGENIC_RTC_H
 #define INGENIC_RTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_INGENIC_RTC "ingenic-rtc"
