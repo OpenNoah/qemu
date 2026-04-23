@@ -122,3 +122,12 @@ hpet_ram_write_tn_cmp(uint8_t reg_off) "hpet_ram_writel HPET_TN_CMP + %" PRIu8
 hpet_ram_write_invalid_tn_cmp(void) "invalid HPET_TN_CMP + 4 write"
 hpet_ram_write_invalid(void) "invalid hpet_ram_writel"
 hpet_ram_write_counter_write_while_enabled(void) "Writing counter while HPET enabled!"
+
+# ingenic_tcu.c
+ingenic_tcu_write(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_tcu_read(uint32_t addr, uint32_t data) "*0x%x = 0x%x"
+ingenic_tcu_enables(uint32_t en) "enables=0x%x"
+ingenic_tcu_freq(uint32_t freq) "freq=%u"
+ingenic_tcu_schedule(uint32_t count, uint32_t half, uint32_t full, uint32_t delta, uint64_t target_ns) "count=%u half=%u full=%u delta=%u target_ns=%" PRIu64
+ingenic_tcu_wrap(int64_t before, int64_t after, int64_t delta_ns, uint64_t inc_ticks) "before=%" PRIi64 " after=%" PRIi64 " delta_ns=%" PRIi64 " inc_ticks=%" PRIu64
+ingenic_tcu_callback(int64_t time) "time=%" PRIi64
