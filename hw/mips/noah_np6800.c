@@ -23,8 +23,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "qemu/datadir.h"
+#include "qemu/error-report.h"
+#include "qemu/log.h"
+#include "qapi/error.h"
 #include "hw/core/clock.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/mips/mips.h"
@@ -35,13 +37,11 @@
 #include "hw/core/irq.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/qdev-properties.h"
-#include "qemu/error-report.h"
-// #include "system/qtest.h"
-// #include "system/reset.h"
-#include "qemu/log.h"
+#include "hw/core/split-irq.h"
 
 #include "hw/mips/ingenic_jz4750.h"
 #include "hw/block/ingenic_emc.h"
+#include "hw/input/fixed_irq.h"
 #include "hw/input/gpio_matrix_keypad.h"
 
 static void mips_noah_np6800_init(MachineState *machine)
@@ -58,6 +58,16 @@ static void mips_noah_np6800_init(MachineState *machine)
     // PE30: POWER key, active low
     qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30);
     qemu_irq_raise(power_key);
+
+    // Fixed GPIO for triggering firmware upgrade
+    FixedIrq *fixed = FIXED_IRQ(qdev_new(TYPE_FIXED_IRQ));
+    object_property_set_int(OBJECT(fixed), "irq-value", 0, &error_fatal);
+    qdev_realize_and_unref(DEVICE(fixed), NULL, &error_fatal);
+
+    // PC4 is Keyboard LEFT
+    // PC17 is Keyboard RIGHT
+    qdev_connect_gpio_out(DEVICE(fixed), 0,
+        qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 17));
 }
 
 static void mips_noah_np6800_machine_init(MachineClass *mc)
