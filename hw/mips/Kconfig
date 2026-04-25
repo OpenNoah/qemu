@@ -36,12 +36,10 @@ config GGV_AONE
     depends on MIPS
     select INGENIC_JZ4720
 
-config INGENIC_JZ4755
+config INGENIC_JZ4720
     bool
-    select SPLIT_IRQ
     select INGENIC_CGU
     select INGENIC_EMC
-    select INGENIC_BCH
     select INGENIC_GPIO
     select INGENIC_UART
     select INGENIC_ADC
@@ -50,10 +48,7 @@ config INGENIC_JZ4755
     select INGENIC_LCD
     select INGENIC_DMAC
     select INGENIC_INTC
-    select INGENIC_I2C
     select INGENIC_MSC
-    select INGENIC_AIC
-    select INGENIC_UDC
 
 config INGENIC_JZ4740
     bool
@@ -74,10 +69,12 @@ config INGENIC_JZ4740
     select INGENIC_AIC
     select INGENIC_UDC
 
-config INGENIC_JZ4720
+config INGENIC_JZ4750
     bool
+    select SPLIT_IRQ
     select INGENIC_CGU
     select INGENIC_EMC
+    select INGENIC_BCH
     select INGENIC_GPIO
     select INGENIC_UART
     select INGENIC_ADC
@@ -86,7 +83,29 @@ config INGENIC_JZ4720
     select INGENIC_LCD
     select INGENIC_DMAC
     select INGENIC_INTC
+    select INGENIC_I2C
     select INGENIC_MSC
+    select INGENIC_AIC
+    select INGENIC_UDC
+
+config INGENIC_JZ4755
+    bool
+    select SPLIT_IRQ
+    select INGENIC_CGU
+    select INGENIC_EMC
+    select INGENIC_BCH
+    select INGENIC_GPIO
+    select INGENIC_UART
+    select INGENIC_ADC
+    select INGENIC_RTC
+    select INGENIC_TCU
+    select INGENIC_LCD
+    select INGENIC_DMAC
+    select INGENIC_INTC
+    select INGENIC_I2C
+    select INGENIC_MSC
+    select INGENIC_AIC
+    select INGENIC_UDC
 
 config JAZZ
     bool
