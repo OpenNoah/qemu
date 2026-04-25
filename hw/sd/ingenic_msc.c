@@ -183,6 +183,7 @@ static void ingenic_msc_start(IngenicMsc *s)
         s->reg.ireg |= BIT(2);
         break;
     case 6:
+    case 7:
         if (rlen != 4)
             goto err;
         // RES_FIFO is bit [47:32], bit[31:16], bit[15:8]
@@ -425,11 +426,19 @@ static void ingenic_msc_init(Object *obj)
     IngenicMsc *s = INGENIC_MSC(obj);
     memory_region_init_io(&s->mr, OBJECT(s), &msc_ops, s, "msc", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mr);
-    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_INGENIC_SDHOST_BUS, DEVICE(s), "sd-bus");
     qdev_init_gpio_out_named(DEVICE(obj), &s->gpio_cd, "io-cd", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->dma_tx, "dma-tx-req", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->dma_rx, "dma-rx-req", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->irq, "irq-out", 1);
+}
+
+static void ingenic_msc_realize(DeviceState *dev, Error **errp)
+{
+    IngenicMsc *s = INGENIC_MSC(dev);
+    const char *bus_name = "sd-bus";
+    if (s->bus_name)
+        bus_name = s->bus_name;
+    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_INGENIC_SDHOST_BUS, DEVICE(s), bus_name);
 }
 
 static void ingenic_msc_finalize(Object *obj)
@@ -438,12 +447,14 @@ static void ingenic_msc_finalize(Object *obj)
 
 static const Property ingenic_msc_properties[] = {
     DEFINE_PROP_UINT32("model", IngenicMsc, model, 0x4755),
+    DEFINE_PROP_STRING("bus", IngenicMsc, bus_name),
 };
 
 static void ingenic_msc_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_msc_properties);
+    dc->realize = ingenic_msc_realize;
 
     IngenicMscClass *msc_class = INGENIC_MSC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

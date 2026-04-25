@@ -46,6 +46,7 @@ typedef struct IngenicMsc
     // Properties
     BlockBackend *blk;
     uint32_t model;
+    char *bus_name;
 
     uint16_t resp[8];
     uint8_t  resp_offset;
