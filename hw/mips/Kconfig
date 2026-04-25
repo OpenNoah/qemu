@@ -13,6 +13,26 @@ config MALTA
     select SERIAL_MM
     select SMBUS_EEPROM
 
+config GGV_AONE
+    bool
+    default y
+    depends on MIPS
+    select INGENIC_JZ4720
+
+config NOAH_NP1380
+    bool
+    default y
+    depends on MIPS
+    select INGENIC_JZ4740
+    select GPIO_MATRIX_KEYPAD
+
+config NOAH_NP6800
+    bool
+    default y
+    depends on MIPS
+    select INGENIC_JZ4750
+    select GPIO_MATRIX_KEYPAD
+
 config IRIVER_D88
     bool
     default y
@@ -22,19 +42,6 @@ config IRIVER_D88
     select WM8731
     select STMPE2403
     select D88_MATRIX_KEYPAD
-
-config NOAH_NP1380
-    bool
-    default y
-    depends on MIPS
-    select INGENIC_JZ4740
-    select GPIO_MATRIX_KEYPAD
-
-config GGV_AONE
-    bool
-    default y
-    depends on MIPS
-    select INGENIC_JZ4720
 
 config INGENIC_JZ4720
     bool
