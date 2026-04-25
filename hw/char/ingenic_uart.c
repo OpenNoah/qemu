@@ -64,7 +64,7 @@ static uint64_t ingenic_uart_read(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
     }
-    trace_ingenic_uart_read(addr, data);
+    trace_ingenic_uart_read(s->mmio.addr, addr, data);
     return data;
 }
 
@@ -72,7 +72,7 @@ static void ingenic_uart_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned int size)
 {
     IngenicUartState *s = INGENIC_UART(opaque);
-    trace_ingenic_uart_write(addr, data);
+    trace_ingenic_uart_write(s->mmio.addr, addr, data);
     switch (addr) {
     case 0x00:
         s->isr = data & 0x1f;
