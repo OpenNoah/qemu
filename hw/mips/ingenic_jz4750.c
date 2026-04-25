@@ -190,22 +190,22 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
 
     // 0x10030000 Register 16550 UART0 on APB
     ingenic_uart_init(apb, 0x00030000,
-        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 9),
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 6),
         115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     // 0x10031000 Register 16550 UART1 on APB
     ingenic_uart_init(apb, 0x00031000,
-        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 8),
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 5),
         115200, serial_hd(1), DEVICE_NATIVE_ENDIAN);
 
     // 0x10032000 Register 16550 UART2 on APB
     ingenic_uart_init(apb, 0x00032000,
-        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 7),
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 4),
         115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
 
     // 0x10033000 Register 16550 UART3 on APB
     ingenic_uart_init(apb, 0x00033000,
-        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 7),
+        qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 3),
         115200, serial_hd(3), DEVICE_NATIVE_ENDIAN);
 
     // 0x10042000 Register I2C on APB
@@ -271,10 +271,10 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
         // 9 RTC
         // 8 AIC
         // 7 PCM
-        // 6 UART0
-        // 5 UART1
-        // 4 UART2
-        // 3 UART3
+        // 6 UART0: Connected above
+        // 5 UART1: Connected above
+        // 4 UART2: Connected above
+        // 3 UART3: Connected above
         // 2 TSSI
         // 1 I2C
         // 0 OWI
