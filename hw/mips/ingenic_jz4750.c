@@ -40,6 +40,8 @@
 #include "hw/core/irq.h"
 #include "hw/core/sysbus.h"
 
+#include "hw/usb/hcd-ohci.h"
+
 #include "hw/mips/ingenic_jz4750.h"
 #include "hw/misc/ingenic_cpm.h"
 #include "hw/intc/ingenic_intc.h"
@@ -112,6 +114,13 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb, 0x00020000, dmac_mr);
+
+    // 0x13030000 Register UHC on AHB
+    OHCISysBusState *uhc = SYSBUS_OHCI(qdev_new(TYPE_SYSBUS_OHCI));
+    object_property_set_uint(OBJECT(uhc), "num-ports", 1, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(uhc), &error_fatal);
+    MemoryRegion *uhc_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(uhc), 0);
+    memory_region_add_subregion(ahb, 0x00030000, uhc_mr);
 
     // 0x13040000 Register UDC on AHB0
     IngenicUdc *udc = INGENIC_UDC(qdev_new(TYPE_INGENIC_UDC));
