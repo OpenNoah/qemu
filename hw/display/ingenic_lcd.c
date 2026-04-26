@@ -82,6 +82,12 @@
 #define REG_LCDSIZE0    0x0128
 #define REG_LCDSIZE1    0x012C
 
+// Smart LCD controller registers
+#define REG_MCFG        0x00A0
+#define REG_MCTRL       0x00A4
+#define REG_MSTATE      0x00A8
+#define REG_MDATA       0x00AC
+
 void qmp_stop(Error **errp);
 
 static void ingenic_lcd_update_irq(IngenicLcd *s)
@@ -544,6 +550,15 @@ static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case REG_LCDSIZE1:
         s->fg[1].lcdsize = data & 0x0fff0fff;
         break;
+
+    // Smart LCD controller
+    case REG_MCFG:
+        // Not implemented, writes ignored for now
+        // If SLCD is being enabled, report an error
+        if (data != 0)
+            qemu_log_mask(LOG_UNIMP, "%s: SLCD not implemented\n", __func__);
+        break;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
                       __func__, addr, data);
