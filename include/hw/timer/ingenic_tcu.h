@@ -94,7 +94,6 @@ typedef struct IngenicTcu
 typedef struct IngenicTcuClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicTcuClass;
 
 #endif /* INGENIC_TCU_H */

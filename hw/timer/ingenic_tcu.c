@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/qdev-clock.h"
@@ -34,9 +35,9 @@
 #include "trace.h"
 
 // Timer status
-#define REG_TSTR    0xf0    // JZ4755
-#define REG_TSTSR   0xf4    // JZ4755
-#define REG_TSTCR   0xf8    // JZ4755
+#define REG_TSTR    0xf0    // 4750, 4755
+#define REG_TSTSR   0xf4    // 4750, 4755
+#define REG_TSTCR   0xf8    // 4750, 4755
 
 // TCU
 #define REG_TSR     0x1c
@@ -57,9 +58,15 @@
 #define REG_TCSR0   0x4c
 
 // OST
-#define REG_OSTDR   0xe0    // JZ4755
-#define REG_OSTCNT  0xe8    // JZ4755
-#define REG_OSTCSR  0xec    // JZ4755
+#define REG_OSTDR   0xe0    // 4750, 4755
+#define REG_OSTCNT  0xe8    // 4750, 4755
+#define REG_OSTCSR  0xec    // 4750, 4755
+
+// WDT
+#define REG_TDR     0x00
+#define REG_TCER    0x04
+#define REG_TCNT    0x08
+#define REG_TCSR    0x0C
 
 void qmp_stop(Error **errp);
 
@@ -296,6 +303,7 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
         case REG_TMR:
             data = s->tcu.tmr;
             break;
+
         case REG_OSTDR:
             data = s->ost.tmr.comp;
             break;
@@ -306,9 +314,11 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
         case REG_OSTCSR:
             data = s->ost.tcsr;
             break;
+
         case REG_TSTR:
             data = s->tcu.tstr;
             break;
+
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
             qmp_stop(NULL);
@@ -369,6 +379,7 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         case REG_TMCR:
             s->tcu.tmr &= ~data & 0x00ff80ff;
             break;
+
         case REG_OSTDR:
             s->ost.tmr.comp = data;
             if (!(s->ost.tcsr & BIT(15)))
@@ -385,12 +396,31 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                 tmr_update_clk_period(&s->ost.tmr, s->ost.tcsr);
             s->ost.tmr.top = s->ost.tcsr & BIT(15) ? 0xffffffff : s->ost.tmr.comp;
             break;
+
+        case REG_TDR:
+            s->wdt.tdr = data & 0xffff;
+            break;
+        case REG_TCER:
+            s->wdt.tcer = data & 0x01;
+            if (s->wdt.tcer & 0x01) {
+                qemu_log_mask(LOG_UNIMP, "%s: WDT not implemented\n", __func__);
+                qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            }
+            break;
+        case REG_TCNT:
+            s->wdt.tcnt = data & 0xffff;
+            break;
+        case REG_TCSR:
+            s->wdt.tcsr = data & 0x3f;
+            break;
+
         case REG_TSTSR:
             s->tcu.tstr |=  data & 0x00060006;
             break;
         case REG_TSTCR:
             s->tcu.tstr &= ~data & 0x00060006;
             break;
+
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
                           __func__, addr, data);
@@ -449,11 +479,6 @@ static void ingenic_tcu_class_init(ObjectClass *class, const void *data)
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_tcu_properties);
 
-    IngenicTcuClass *bch_class = INGENIC_TCU_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_tcu_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = &ingenic_tcu_reset;
 }
