@@ -179,6 +179,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     // 0x10020000 Register AIC on APB
     IngenicAic *aic = INGENIC_AIC(qdev_new(TYPE_INGENIC_AIC));
+    object_property_set_uint(OBJECT(aic), "model", 0x4755, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(aic), &error_fatal);
     MemoryRegion *aic_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(aic), 0);
     memory_region_add_subregion(apb, 0x00020000, aic_mr);

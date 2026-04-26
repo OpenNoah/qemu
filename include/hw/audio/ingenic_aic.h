@@ -38,6 +38,7 @@ typedef struct IngenicAic
     SysBusDevice parent_obj;
     MemoryRegion mr;
 
+    uint32_t model;
     AudioBackend *audio_be;
     union {
         SWVoiceIn *in;
@@ -69,7 +70,6 @@ typedef struct IngenicAic
 typedef struct IngenicAicClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicAicClass;
 
 uint32_t ingenic_aic_dma_tx_available(IngenicAic *s);

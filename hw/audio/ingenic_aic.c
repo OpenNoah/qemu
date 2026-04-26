@@ -45,10 +45,10 @@ typedef enum IngenicAicReg {
     REG_ACSDR  = 0x2c,
     REG_I2SDIV = 0x30,
     REG_AICDR  = 0x34,
-    // JZ4740
+    // 4740
     REG_CDCCR1 = 0x80,
     REG_CDCCR2 = 0x84,
-    // JZ4755
+    // 4750, 4755
     REG_CKCFG  = 0xa0,
     REG_RGADW  = 0xa4,
     REG_RGDATA = 0xa8,
@@ -205,6 +205,12 @@ static uint64_t ingenic_aic_read(void *opaque, hwaddr addr, unsigned size)
     case REG_CDCCR2:
         data = s->reg.cdccr2;
         break;
+
+    // Internal CODEC
+    case REG_RGADW:
+        qemu_log_mask(LOG_UNIMP, "%s: CODEC not implemented\n", __func__);
+        return data;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
         qmp_stop(NULL);
@@ -242,6 +248,12 @@ static void ingenic_aic_write(void *opaque, hwaddr addr, uint64_t data, unsigned
     case REG_CDCCR2:
         ingenic_aic_cdccr2_update(s, data);
         break;
+
+    // Internal CODEC
+    case REG_RGADW:
+        qemu_log_mask(LOG_UNIMP, "%s: CODEC not implemented\n", __func__);
+        break;
+
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx " 0x%"PRIx64"\n",
                       __func__, addr, data);
@@ -279,6 +291,7 @@ static void ingenic_aic_finalize(Object *obj)
 }
 
 static const Property ingenic_aic_properties[] = {
+    DEFINE_PROP_UINT32("model", IngenicAic, model, 0x4755),
     DEFINE_AUDIO_PROPERTIES(IngenicAic, audio_be),
 };
 
@@ -289,11 +302,6 @@ static void ingenic_aic_class_init(ObjectClass *class, const void *data)
     device_class_set_props(dc, ingenic_aic_properties);
     dc->realize = &ingenic_aic_realize;
 
-    IngenicAicClass *bch_class = INGENIC_AIC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_aic_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = &ingenic_aic_reset;
 }
