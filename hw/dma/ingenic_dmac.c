@@ -88,15 +88,25 @@ static void ingenic_dmac_update_irq(IngenicDmac *s, int dmac, int ch)
         // Descriptor invalid
         ((dcm & BIT(2)) && (dcs & BIT(6))) |
         // Transfer interrupt
-        //((dcm & BIT(1)) && (dcs & (BIT(3) | BIT(1)))) |
+        // ((dcm & BIT(1)) && (dcs & (BIT(3) | BIT(1)))) |
         ((dcm & BIT(1)) && (dcs & BIT(3))) |
         // Unmaskable errors
         (dcs & BIT(4)))
         dirqp |= 1 << ch;
+    // Clearing DCS.CTE also clears DIRQP
+    // Document says DCS.CT, but I believe only CTE makes sense?
+    if (!(dcs & BIT(0)))
+        dirqp = 0;
+
     bool update = !(dirqp) != !(s->reg[dmac].dirqp);
     s->reg[dmac].dirqp = dirqp;
     if (update) {
-        qemu_set_irq(s->irq[dmac], !!dirqp);
+        if (s->model == 0x4750) {
+            // Although there are 2x DMAs, there is only one DMA interrupt connected
+            qemu_set_irq(s->irq[0], !!dirqp);
+        } else {
+            qemu_set_irq(s->irq[dmac], !!dirqp);
+        }
         trace_ingenic_dmac_interrupt(dmac, ch, !!dirqp);
     }
 }
@@ -197,10 +207,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         return;
     }
 
-    // Continuous transfer, no need to wait
     trace_ingenic_dmac_transfer(dmac, ch,
         dst, dst_b, dst_inc ? "++" : "",
         src, src_b, src_inc ? "++" : "", avail);
+
+    // Continuous transfer, no need to wait
     while (avail) {
         uint8_t buf[4096];
         uint32_t len = MIN(sizeof(buf), avail);
@@ -317,7 +328,6 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
     }
 
     // Transfer complete
-    // TODO generate interrupts
     if (vm) {
         // If VM=1, clear V to 0
         s->reg[dmac].ch[ch].dcm &= ~BIT(4);
@@ -522,7 +532,7 @@ static void ingenic_dmac_channel_req_detect(IngenicDmac *s, int dmac, int ch, in
     case INGENIC_DMAC_REQ_NAND:
     case INGENIC_DMAC_REQ_MSC0_RX:
     case INGENIC_DMAC_REQ_AIC_TX:
-        if (level) {
+        if (s->dma[dmac].ch[ch].state == IngenicDmacChIdle && level) {
             // Trigger on rising edge
             s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
             qemu_bh_schedule(s->trigger_bh);
@@ -664,6 +674,9 @@ static void ingenic_dmac_write(void *opaque, hwaddr addr, uint64_t data, unsigne
                 ingenic_dmac_update_irq(s, dmac, ch);
                 // Start DMA transfer
                 if (ingenic_dmac_channel_is_enabled(s, dmac, ch)) {
+                    trace_ingenic_dmac_enable(dmac, ch,
+                        s->reg[dmac].ch[ch].dsa, s->reg[dmac].ch[ch].dta, s->reg[dmac].ch[ch].dtc,
+                        s->reg[dmac].ch[ch].dda, s->reg[dmac].ch[ch].dsd);
                     s->dma[dmac].ch[ch].state = IngenicDmacChDesc;
                     qemu_bh_schedule(s->trigger_bh);
                 } else {
