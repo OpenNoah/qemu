@@ -36,7 +36,7 @@
 typedef struct IngenicJZ4750 {
     MIPSCPU *cpu;
     IngenicGpio *gpio[6];
-    IngenicMsc *msc;
+    IngenicMsc *msc[2];
     I2CBus *i2c;
 } IngenicJZ4750;
 

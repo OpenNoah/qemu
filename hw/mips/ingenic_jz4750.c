@@ -181,6 +181,7 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(msc0), &error_fatal);
     MemoryRegion *msc0_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc0), 0);
     memory_region_add_subregion(apb, 0x00021000, msc0_mr);
+    soc->msc[0] = msc0;
 
     // 0x10022000 Register MSC1 on APB
     IngenicMsc *msc1 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
@@ -188,6 +189,7 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(msc1), &error_fatal);
     MemoryRegion *msc1_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc1), 0);
     memory_region_add_subregion(apb, 0x00022000, msc1_mr);
+    soc->msc[1] = msc1;
 
     // 0x10030000 Register 16550 UART0 on APB
     ingenic_uart_init(apb, 0x00030000,
