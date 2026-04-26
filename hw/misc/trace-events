@@ -418,7 +418,8 @@ iommu_testdev_dma_verify(uint32_t expected, uint32_t actual) "expected=0x%x actu
 iommu_testdev_dma_result(uint32_t result) "DMA completed result=0x%x"
 iommu_testdev_dma_armed(bool armed) "armed=%d"
 
-# ingenic_cgu.c
-ingenic_cgu_read(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
-ingenic_cgu_write(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
-ingenic_cgu_cclk_freq(uint32_t freq) "freq=%u"
+# ingenic_cpm.c
+ingenic_cpm_reset(int model) "model=0x%x"
+ingenic_cpm_read(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
+ingenic_cpm_write(int reg, uint64_t value, unsigned int size) "reg=0x%x value=0x%"PRIx64" size=%u"
+ingenic_cpm_cclk_freq(uint32_t freq) "freq=%u"

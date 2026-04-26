@@ -151,7 +151,7 @@ config MPS2_SCC
     bool
     select LED
 
-config INGENIC_CGU
+config INGENIC_CPM
     bool
 
 config TZ_MPC

@@ -30,7 +30,7 @@
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/timer/ingenic_tcu.h"
-#include "hw/misc/ingenic_cgu.h"
+#include "hw/misc/ingenic_cpm.h"
 #include "trace.h"
 
 // Timer status
@@ -93,14 +93,14 @@ static void tmr_update_clk_period(IngenicTcuTimerCommon *tmr, uint32_t tcsr)
     // Configure timer frequency
     static const uint32_t clkdiv_map[] = {1, 4, 16, 64, 256, 1024, 0, 0};
     uint32_t clkdiv = clkdiv_map[(tcsr >> 3) & 7];
-    IngenicCgu *cgu = ingenic_cgu_get_cgu();
+    IngenicCpm *cpm = ingenic_cpm_get_cpm();
     Clock *clock = NULL;
     if (tcsr & BIT(2))
-        clock = qdev_get_clock_out(DEVICE(cgu), "clk_ext");
+        clock = qdev_get_clock_out(DEVICE(cpm), "clk_ext");
     else if (tcsr & BIT(1))
-        clock = qdev_get_clock_out(DEVICE(cgu), "clk_rtc");
+        clock = qdev_get_clock_out(DEVICE(cpm), "clk_rtc");
     else if (tcsr & BIT(0))
-        clock = qdev_get_clock_out(DEVICE(cgu), "clk_pclk");
+        clock = qdev_get_clock_out(DEVICE(cpm), "clk_pclk");
     uint64_t clk_period = 0;
     if (clkdiv != 0 && clock != NULL)
         clk_period = clock_get(clock) * clkdiv;

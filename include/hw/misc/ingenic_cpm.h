@@ -1,5 +1,5 @@
 /*
- * Ingenic JZ4755 Clock Reset and Power Controller emulation
+ * Ingenic JZ47xx Clock Reset and Power Controller emulation
  *
  * Copyright (c) 2024 Norman Zhi
  *
@@ -17,17 +17,17 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef INGENIC_CGU_H
-#define INGENIC_CGU_H
+#ifndef INGENIC_CPM_H
+#define INGENIC_CPM_H
 
 #include "hw/core/sysbus.h"
 #include "hw/core/clock.h"
 #include "qom/object.h"
 
-#define TYPE_INGENIC_CGU "ingenic-cgu"
-OBJECT_DECLARE_TYPE(IngenicCgu, IngenicCguClass, INGENIC_CGU)
+#define TYPE_INGENIC_CPM "ingenic-cpm"
+OBJECT_DECLARE_TYPE(IngenicCpm, IngenicCpmClass, INGENIC_CPM)
 
-typedef struct IngenicCgu {
+typedef struct IngenicCpm {
     SysBusDevice parent_obj;
     MemoryRegion mr;
 
@@ -50,23 +50,31 @@ typedef struct IngenicCgu {
         uint32_t cppcr;
         uint32_t cppsr;
         uint32_t clkgr;
-        uint16_t opcr;
-        uint16_t scr;
+        union {
+            uint16_t opcr;
+            uint16_t scr;
+        };
         uint16_t i2scdr;
         uint32_t lpcdr;
-        uint8_t  msccdr;
+        union {
+            uint8_t  msccdr;
+            uint8_t  msc0cdr;
+        };
         uint8_t  uhccdr;
         uint32_t ssicdr;
-        uint32_t cimcdr;
+        uint8_t  msc1cdr;
+        union {
+            uint32_t pcmcdr;
+            uint32_t cimcdr;
+        };
     } reg;
-} IngenicCgu;
+} IngenicCpm;
 
-typedef struct IngenicCguClass
+typedef struct IngenicCpmClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
-} IngenicCguClass;
+} IngenicCpmClass;
 
-IngenicCgu *ingenic_cgu_get_cgu(void);
+IngenicCpm *ingenic_cpm_get_cpm(void);
 
-#endif /* INGENIC_CGU_H */
+#endif /* INGENIC_CPM_H */

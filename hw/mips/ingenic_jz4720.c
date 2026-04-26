@@ -39,7 +39,7 @@
 #include "hw/core/sysbus.h"
 
 #include "hw/mips/ingenic_jz4720.h"
-#include "hw/misc/ingenic_cgu.h"
+#include "hw/misc/ingenic_cpm.h"
 #include "hw/intc/ingenic_intc.h"
 #include "hw/dma/ingenic_dmac.h"
 #include "hw/timer/ingenic_tcu.h"
@@ -65,14 +65,14 @@ IngenicJZ4720 *ingenic_jz4720_init(MachineState *machine)
     CPUMIPSState *env;
 
     /* Needs to have clocks first */
-    IngenicCgu *cgu = INGENIC_CGU(qdev_new(TYPE_INGENIC_CGU));
-    object_property_set_uint(OBJECT(cgu), "model", 0x4720, &error_fatal);
-    object_property_set_uint(OBJECT(cgu), "ext-freq", 12000000, &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(cgu), &error_fatal);
+    IngenicCpm *cpm = INGENIC_CPM(qdev_new(TYPE_INGENIC_CPM));
+    object_property_set_uint(OBJECT(cpm), "model", 0x4720, &error_fatal);
+    object_property_set_uint(OBJECT(cpm), "ext-freq", 12000000, &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(cpm), &error_fatal);
 
     /* Init CPUs. */
     // machine->cpu_type = "XBurstR1-mips-cpu";
-    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cgu), "clk_cclk"), false);
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, qdev_get_clock_out(DEVICE(cpm), "clk_cclk"), false);
     env = &cpu->env;
     soc->cpu = cpu;
 
@@ -141,7 +141,7 @@ IngenicJZ4720 *ingenic_jz4720_init(MachineState *machine)
     memory_region_add_subregion(sys_mem, 0x10000000, apb);
 
     // 0x10000000 Register CGU on APB
-    MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cgu), 0);
+    MemoryRegion *cgu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(cpm), 0);
     memory_region_add_subregion(apb, 0, cgu_mr);
 
     // 0x10001000 Register INTC on APB
