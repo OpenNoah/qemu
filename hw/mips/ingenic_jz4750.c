@@ -108,6 +108,7 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
 
     // 0x13020000 Register DMAC on AHB0
     IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
+    object_property_set_uint(OBJECT(dmac), "model", 0x4750, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb, 0x00020000, dmac_mr);
@@ -291,9 +292,24 @@ IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine)
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
 
+    // Connect modules to DMA
+    dmac->msc[0] = msc0;
+    dmac->msc[1] = msc1;
+    dmac->aic = aic;
+
     // Connect DMA requests
     qdev_connect_gpio_out(nand_rb_splitter, 1,
-        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_NAND));
+    qdev_connect_gpio_out_named(DEVICE(aic), "dma-tx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_AIC_TX));
+    qdev_connect_gpio_out_named(DEVICE(msc0), "dma-tx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC0_TX));
+    qdev_connect_gpio_out_named(DEVICE(msc0), "dma-rx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC0_RX));
+    qdev_connect_gpio_out_named(DEVICE(msc1), "dma-tx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC1_TX));
+    qdev_connect_gpio_out_named(DEVICE(msc1), "dma-rx-req", 0,
+        qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_MSC1_RX));
 
     // 0x1fc00000 On-chip Boot ROM (8KiB)
     MemoryRegion *bootrom = g_new(MemoryRegion, 1);

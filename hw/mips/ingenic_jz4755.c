@@ -112,6 +112,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     // 0x13020000 Register DMAC on AHB0
     IngenicDmac *dmac = INGENIC_DMAC(qdev_new(TYPE_INGENIC_DMAC));
+    object_property_set_uint(OBJECT(dmac), "model", 0x4755, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dmac), &error_fatal);
     MemoryRegion *dmac_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dmac), 0);
     memory_region_add_subregion(ahb0, 0x00020000, dmac_mr);
@@ -273,6 +274,11 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
                                     irqs[i].dev_irq_name, irqs[i].dev_irq, irq);
     }
     qdev_connect_gpio_out_named(DEVICE(intc), "irq-out", 0, env->irq[2]);
+
+    // Connect modules to DMA
+    dmac->msc[0] = msc0;
+    dmac->msc[1] = msc1;
+    dmac->aic = aic;
 
     // Connect DMA requests
     qdev_connect_gpio_out(nand_rb_splitter, 1,

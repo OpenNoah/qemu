@@ -77,10 +77,6 @@ static void ingenic_dmac_reset(Object *obj, ResetType type)
         s->reg[dmac].ddr   = 0;
         s->reg[dmac].dcke  = 0;
     }
-
-    // Find peripherals
-    s->msc = INGENIC_MSC(object_resolve_path_type("", TYPE_INGENIC_MSC, NULL));
-    s->aic = INGENIC_AIC(object_resolve_path_type("", TYPE_INGENIC_AIC, NULL));
 }
 
 static void ingenic_dmac_update_irq(IngenicDmac *s, int dmac, int ch)
@@ -173,7 +169,17 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         break;
     case INGENIC_DMAC_REQ_MSC0_TX:
     case INGENIC_DMAC_REQ_MSC0_RX:
-        avail = likely(s->msc) ? MIN(size, ingenic_msc_available(s->msc)) : 0;
+        avail = likely(s->msc[0]) ? MIN(size, ingenic_msc_available(s->msc[0])) : 0;
+        break;
+    case INGENIC_DMAC_REQ_MSC1_TX:
+    case INGENIC_DMAC_REQ_MSC1_RX:
+        if (s->model < 0x4750) {
+            qemu_log_mask(LOG_UNIMP, "%s: %u.%u TODO Unknown req type %d\n", __func__, dmac, ch, req);
+            qmp_stop(NULL);
+            s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+            return;
+        }
+        avail = likely(s->msc[1]) ? MIN(size, ingenic_msc_available(s->msc[1])) : 0;
         break;
     case INGENIC_DMAC_REQ_BCH_DEC:
         // DMA read data from memory pointed by DSAR0 and write to BCH data register BHDR
@@ -204,10 +210,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         //*((uint32_t *)&buf[0] + (len % sizeof(buf)) / 4) = 0;
         // Read from source
         if (0) {
-#if MSC_RX_PASS_THROUGH
-        } else if (req == INGENIC_DMAC_REQ_MSC0_RX && src == 0x10021038) {
-            // Fast pass-through for MSC RX
-            len = ingenic_msc_sd_read(s->msc, buf, len);
+#if MSC_RX_PASS_THROUGH     // Fast pass-through for MSC RX
+        } else if (req == INGENIC_DMAC_REQ_MSC0_RX && (src & 0x0fff) == 0x0038) {
+            len = ingenic_msc_sd_read(s->msc[0], buf, len);
+        } else if (s->model >= 0x4750 && req == INGENIC_DMAC_REQ_MSC1_RX && (src & 0x0fff) == 0x0038) {
+            len = ingenic_msc_sd_read(s->msc[1], buf, len);
 #endif
         } else {
             uint8_t *pbuf = &buf[0];
@@ -225,10 +232,11 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
         }
         // Write to target
         if (0) {
-#if MSC_TX_PASS_THROUGH
-        } else if (req == INGENIC_DMAC_REQ_MSC0_TX && dst == 0x1002103c) {
-            // Fast pass-through for MSC TX
-            len = ingenic_msc_sd_write(s->msc, buf, len);
+#if MSC_TX_PASS_THROUGH     // Fast pass-through for MSC TX
+        } else if (req == INGENIC_DMAC_REQ_MSC0_TX && (dst & 0x0fff) == 0x003c) {
+            len = ingenic_msc_sd_write(s->msc[0], buf, len);
+        } else if (s->model >= 0x4750 && req == INGENIC_DMAC_REQ_MSC1_TX && (dst & 0x0fff) == 0x003c) {
+            len = ingenic_msc_sd_write(s->msc[1], buf, len);
 #endif
         } else {
             uint8_t *pbuf = &buf[0];
@@ -248,6 +256,15 @@ static void ingenic_dmac_channel_trigger(IngenicDmac *s, int dmac, int ch)
 
     // Update registers
     switch (req) {
+    case INGENIC_DMAC_REQ_MSC1_TX:
+    case INGENIC_DMAC_REQ_MSC1_RX:
+        if (s->model < 0x4750) {
+            qemu_log_mask(LOG_UNIMP, "%s: %u.%u TODO Unknown req type %d\n", __func__, dmac, ch, req);
+            qmp_stop(NULL);
+            s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+            break;
+        }
+        // fall-through
     case INGENIC_DMAC_REQ_AUTO:
     case INGENIC_DMAC_REQ_NAND:
     case INGENIC_DMAC_REQ_MSC0_TX:
@@ -405,10 +422,28 @@ static void ingenic_dmac_wait_req(IngenicDmac *s, int dmac, int ch)
     case INGENIC_DMAC_REQ_MSC0_RX:
         // Wait for request trigger
         s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
-        if (unlikely(!s->msc)) {
+        if (unlikely(!s->msc[0])) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: MSC controller not found\n", __func__);
             qmp_stop(NULL);
-        } else if (ingenic_msc_available(s->msc)) {
+        } else if (ingenic_msc_available(s->msc[0])) {
+            // Data/space available, start immediately
+            s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
+        }
+        break;
+    case INGENIC_DMAC_REQ_MSC1_TX:
+    case INGENIC_DMAC_REQ_MSC1_RX:
+        if (s->model < 0x4750) {
+            qemu_log_mask(LOG_UNIMP, "%s: %u.%u TODO Unknown req type %d\n", __func__, dmac, ch, req);
+            qmp_stop(NULL);
+            s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+            break;
+        }
+        // Wait for request trigger
+        s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
+        if (unlikely(!s->msc[1])) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: MSC controller not found\n", __func__);
+            qmp_stop(NULL);
+        } else if (ingenic_msc_available(s->msc[1])) {
             // Data/space available, start immediately
             s->dma[dmac].ch[ch].state = IngenicDmacChTxfr;
         }
@@ -431,9 +466,9 @@ static void ingenic_dmac_wait_req(IngenicDmac *s, int dmac, int ch)
         }
         break;
     default:
-        s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
         qemu_log_mask(LOG_UNIMP, "%s: %u.%u TODO Unknown req type %d\n", __func__, dmac, ch, req);
         qmp_stop(NULL);
+        s->dma[dmac].ch[ch].state = IngenicDmacChIdle;
         break;
     }
 }
@@ -477,6 +512,13 @@ static int ingenic_dmac_channel_is_enabled(IngenicDmac *s, int dmac, int ch)
 static void ingenic_dmac_channel_req_detect(IngenicDmac *s, int dmac, int ch, int req, int level)
 {
     switch (req) {
+    case INGENIC_DMAC_REQ_MSC1_RX:
+        if (s->model < 0x4750) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: %u.%u Unknown DMA request %u\n", __func__, dmac, ch, req);
+            qmp_stop(NULL);
+            break;
+        }
+        // fall-through
     case INGENIC_DMAC_REQ_NAND:
     case INGENIC_DMAC_REQ_MSC0_RX:
     case INGENIC_DMAC_REQ_AIC_TX:
@@ -713,11 +755,6 @@ static void ingenic_dmac_class_init(ObjectClass *class, const void *data)
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_dmac_properties);
 
-    IngenicDmacClass *bch_class = INGENIC_DMAC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_dmac_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = &ingenic_dmac_reset;
 }

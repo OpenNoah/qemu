@@ -56,7 +56,7 @@ typedef struct IngenicDmac
         } ch[INGENIC_DMAC_NUM_CH];
     } dma[INGENIC_DMAC_NUM_DMAC];
 
-    IngenicMsc *msc;
+    IngenicMsc *msc[2];
     IngenicAic *aic;
 
     // Properties
@@ -84,7 +84,6 @@ typedef struct IngenicDmac
 typedef struct IngenicDmacClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicDmacClass;
 
 typedef enum IngenicDmacReqType {
@@ -103,6 +102,8 @@ typedef enum IngenicDmacReqType {
     INGENIC_DMAC_REQ_TCU     = 28,
     INGENIC_DMAC_REQ_SADC    = 29,
     INGENIC_DMAC_REQ_SLCD    = 30,
+    INGENIC_DMAC_REQ_MSC1_TX = 30,  // 4750, 4755
+    INGENIC_DMAC_REQ_MSC1_RX = 31,  // 4750, 4755
 } IngenicDmacReqType;
 
 #endif /* INGENIC_DMAC_H */

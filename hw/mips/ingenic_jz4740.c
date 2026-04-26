@@ -283,6 +283,10 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     qemu_irq uhc_irq = qdev_get_gpio_in_named(DEVICE(intc), "irq-in", 3);
     sysbus_connect_irq(SYS_BUS_DEVICE(uhc), 0, uhc_irq);
 
+    // Connect modules to DMA
+    dmac->msc[0] = msc;
+    dmac->aic = aic;
+
     // Connect DMA requests
     qdev_connect_gpio_out_named(DEVICE(aic), "dma-tx-req", 0,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", INGENIC_DMAC_REQ_AIC_TX));

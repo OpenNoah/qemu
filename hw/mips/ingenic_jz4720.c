@@ -287,6 +287,10 @@ IngenicJZ4720 *ingenic_jz4720_init(MachineState *machine)
     sysbus_connect_irq(SYS_BUS_DEVICE(uhc), 0, uhc_irq);
 #endif
 
+    // Connect modules to DMA
+    dmac->msc[0] = msc;
+    // dmac->aic = aic;
+
     // Connect DMA requests
     qdev_connect_gpio_out_named(DEVICE(msc), "dma-tx-req", 0,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 26));
