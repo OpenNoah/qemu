@@ -42,6 +42,7 @@
 
 #include "hw/mips/ingenic_jz4740.h"
 #include "hw/block/ingenic_emc.h"
+#include "hw/input/fixed_irq.h"
 #include "hw/input/gpio_matrix_keypad.h"
 
 typedef struct ResetData {
@@ -136,6 +137,8 @@ static void mips_noah_np1380_init(MachineState *machine)
     object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffef, &error_fatal);
     qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
 
+#define FIRMWARE_UPGRADE    0
+
     // Keypad IO connections
     const struct {
         bool row;
@@ -145,7 +148,9 @@ static void mips_noah_np1380_init(MachineState *machine)
         { true, 'D',  2},   // LT7
         { true, 'D',  3},   // LT6
         { true, 'D',  7},   // RT7
+#if !FIRMWARE_UPGRADE
         {false, 'D',  1},   // LT3/RT4
+#endif
         {false, 'D', 17},   // LT4/RT5
         {false, 'D', 15},   // LT5/RT6
         {false, 'D',  0},   // RT3
@@ -161,6 +166,17 @@ static void mips_noah_np1380_init(MachineState *machine)
         qdev_connect_gpio_out_named(DEVICE(kp), name, *pi_kp, irq);
         *pi_kp += 1;
     }
+
+#if FIRMWARE_UPGRADE
+    // Fixed GPIO for triggering firmware upgrade
+    FixedIrq *fixed = FIXED_IRQ(qdev_new(TYPE_FIXED_IRQ));
+    object_property_set_int(OBJECT(fixed), "irq-value", 0, &error_fatal);
+    qdev_realize_and_unref(DEVICE(fixed), NULL, &error_fatal);
+
+    // PD1 is keypad RIGHT
+    qdev_connect_gpio_out(DEVICE(fixed), 0,
+        qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 1));
+#endif
 
     // PC23: LCD select, 0: KD035G6, 1: PT035TN01_V5
     qemu_irq lcd_sel = qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 23);
