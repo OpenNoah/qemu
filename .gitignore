@@ -1,5 +1,5 @@
 /GNUmakefile
-/build/
+/build*/
 /.cache/
 /.vscode/
 /.vscode*
