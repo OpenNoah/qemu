@@ -44,6 +44,8 @@
 #include "hw/input/fixed_irq.h"
 #include "hw/input/gpio_matrix_keypad.h"
 
+#define FIRMWARE_UPGRADE    1
+
 static void mips_noah_np6800_init(MachineState *machine)
 {
     IngenicJZ4750 *soc = ingenic_jz4750_init(machine);
@@ -59,15 +61,16 @@ static void mips_noah_np6800_init(MachineState *machine)
     qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30);
     qemu_irq_raise(power_key);
 
+#if FIRMWARE_UPGRADE
     // Fixed GPIO for triggering firmware upgrade
     FixedIrq *fixed = FIXED_IRQ(qdev_new(TYPE_FIXED_IRQ));
     object_property_set_int(OBJECT(fixed), "irq-value", 0, &error_fatal);
     qdev_realize_and_unref(DEVICE(fixed), NULL, &error_fatal);
 
-    // PC4 is Keyboard LEFT
     // PC17 is Keyboard RIGHT
     qdev_connect_gpio_out(DEVICE(fixed), 0,
         qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 17));
+#endif
 }
 
 static void mips_noah_np6800_machine_init(MachineClass *mc)

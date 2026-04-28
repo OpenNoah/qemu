@@ -45,6 +45,8 @@
 #include "hw/input/fixed_irq.h"
 #include "hw/input/gpio_matrix_keypad.h"
 
+#define FIRMWARE_UPGRADE    0
+
 typedef struct ResetData {
     MIPSCPU *cpu;
     uint64_t vector;
@@ -136,8 +138,6 @@ static void mips_noah_np1380_init(MachineState *machine)
     object_property_set_uint(OBJECT(kp), "col-pull", 0xffffffff, &error_fatal);
     object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffef, &error_fatal);
     qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
-
-#define FIRMWARE_UPGRADE    0
 
     // Keypad IO connections
     const struct {
