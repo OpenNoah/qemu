@@ -257,7 +257,7 @@ static void gpio_matrix_keypad_load_keymap_file(GpioMatrixKeypad *s, char *path)
     if (!g_file_get_contents(path, &contents, NULL, NULL)) {
         warn_report(TYPE_GPIO_MATRIX_KEYPAD ": failed to load \"%s\"", path);
     } else {
-        int row = 0;
+        int row = -1, col = -1;
         gchar **lines = g_strsplit_set(contents, "\r\n", 0);
         gchar **line = lines;
         int line_cnt = 1;
@@ -270,24 +270,50 @@ static void gpio_matrix_keypad_load_keymap_file(GpioMatrixKeypad *s, char *path)
                     gchar *value = kv[1];
                     key = strip_string_quotes(key);
                     value = strip_string_quotes(value);
-
-                    if (g_str_has_prefix(key, "row-")) {
-                        int new_row = g_ascii_strtoull(key + 4, NULL, 0);
-                        if (new_row >= s->row.num_pins) {
-                            warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid row %d ignored",
-                                path, line_cnt, new_row);
-                        } else {
-                            row = new_row;
+                    if (*value == '\0') {
+                        if (g_str_has_prefix(key, "row-")) {
+                            int pin = g_ascii_strtoull(key + 4, NULL, 0);
+                            if (pin >= s->row.num_pins) {
+                                warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid row %d ignored",
+                                    path, line_cnt, pin);
+                                row = -1;
+                            } else {
+                                row = pin;
+                            }
+                        } else if (g_str_has_prefix(key, "col-")) {
+                            int pin = g_ascii_strtoull(key + 4, NULL, 0);
+                            if (pin >= s->col.num_pins) {
+                                warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid col %d ignored",
+                                    path, line_cnt, pin);
+                                col = -1;
+                            } else {
+                                col = pin;
+                            }
                         }
-                    } else if (g_str_has_prefix(key, "col-")) {
-                        int col = g_ascii_strtoull(key + 4, NULL, 0);
-                        Error *errp = NULL;
-                        int key_code = qapi_enum_parse(&QKeyCode_lookup, value, Q_KEY_CODE_UNMAPPED, &errp);
-                        if (errp) {
-                            warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid key \"%s\" ignored",
-                                path, line_cnt, value);
+                    } else {
+                        if (g_str_has_prefix(key, "row-")) {
+                            if (col >= 0) {
+                                int pin = g_ascii_strtoull(key + 4, NULL, 0);
+                                Error *errp = NULL;
+                                int key_code = qapi_enum_parse(&QKeyCode_lookup, value, Q_KEY_CODE_UNMAPPED, &errp);
+                                if (errp) {
+                                    warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid key \"%s\" ignored",
+                                        path, line_cnt, value);
+                                }
+                                s->key_map[pin * s->col.num_pins + col] = key_code;
+                            }
+                        } else if (g_str_has_prefix(key, "col-")) {
+                            if (row >= 0) {
+                                int pin = g_ascii_strtoull(key + 4, NULL, 0);
+                                Error *errp = NULL;
+                                int key_code = qapi_enum_parse(&QKeyCode_lookup, value, Q_KEY_CODE_UNMAPPED, &errp);
+                                if (errp) {
+                                    warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid key \"%s\" ignored",
+                                        path, line_cnt, value);
+                                }
+                                s->key_map[row * s->col.num_pins + pin] = key_code;
+                            }
                         }
-                        s->key_map[row * s->col.num_pins + col] = key_code;
                     }
                 }
                 g_strfreev(kv);
