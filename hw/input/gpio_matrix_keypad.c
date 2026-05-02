@@ -218,7 +218,7 @@ static void gpio_matrix_keypad_event(DeviceState *dev, QemuConsole *src, InputEv
 
     // Or dedicated pin IO
     int pin;
-    for (pin = 0; pin < s->col.num_pins; pin++)
+    for (pin = 0; pin < s->pin.num_pins; pin++)
         if (s->pin_key_map[pin] == qcode)
             goto pin_key_found;
 
