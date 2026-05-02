@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "ui/input.h"
+#include "system/reset.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/input/gpio_matrix_keypad.h"
@@ -37,7 +38,7 @@ static void send_pin_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *io, int pin)
     else if (~io->floating & ~io->pull & mask)
         level = (io->value & mask) ? INGENIC_GPIO_LEVEL_HIGH : INGENIC_GPIO_LEVEL_LOW;
     trace_gpio_matrix_keypad_out(io->name, pin, IngenicGpioLevel_str(level));
-    qemu_set_irq(io->irq[pin], level);
+    qemu_set_irq(io->irq[pin], level ^ ((io->inv >> pin) & 1));
 }
 
 static void gpio_matrix_keypad_reset(Object *obj, ResetType type)
@@ -47,16 +48,21 @@ static void gpio_matrix_keypad_reset(Object *obj, ResetType type)
         s->btn_hold_map[row] = 0;
         s->btn_press_map[row] = 0;
     }
+    s->pin_hold_map = 0;
     s->row.floating = ~s->row.ext_pull;
     s->row.pull = s->row.ext_pull;
     s->row.value = s->row.ext_pull_value;
     s->col.floating = ~s->col.ext_pull;
     s->col.pull = s->col.ext_pull;
     s->col.value = s->col.ext_pull_value;
+    s->pin.pull = s->pin.ext_pull;
+    s->pin.value = s->pin.ext_pull_value;
     for (int pin = 0; pin < s->row.num_pins; pin++)
         send_pin_state(s, &s->row, pin);
     for (int pin = 0; pin < s->col.num_pins; pin++)
         send_pin_state(s, &s->col, pin);
+    for (int pin = 0; pin < s->pin.num_pins; pin++)
+        send_pin_state(s, &s->pin, pin);
 }
 
 static bool update_pin_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *io, int pin, int level)
@@ -99,7 +105,7 @@ static bool update_pin_state(GpioMatrixKeypad *s, GpioMatrixKeypadIO *io, int pi
     // Send back IRQ level change for the same pin
     if (level != cur_level) {
         trace_gpio_matrix_keypad_out(io->name, pin, IngenicGpioLevel_str(level));
-        qemu_set_irq(io->irq[pin], level);
+        qemu_set_irq(io->irq[pin], level ^ ((io->inv >> pin) & 1));
         return true;
     }
     return false;
@@ -205,13 +211,32 @@ static void gpio_matrix_keypad_event(DeviceState *dev, QemuConsole *src, InputEv
 
     // Map to matrix row & column IO
     int row, col;
-    for (row = 0; row < s->row.num_pins; row++) {
-        for (col = 0; col < s->col.num_pins; col++) {
+    for (row = 0; row < s->row.num_pins; row++)
+        for (col = 0; col < s->col.num_pins; col++)
             if (s->key_map[row * s->col.num_pins + col] == qcode)
                 goto key_found;
-        }
+
+    // Or dedicated pin IO
+    int pin;
+    for (pin = 0; pin < s->col.num_pins; pin++)
+        if (s->pin_key_map[pin] == qcode)
+            goto pin_key_found;
+
+    trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, -1, -1, -1);
+    return;
+
+pin_key_found:
+    {
+        // Ignore auto-repeat
+        uint32_t value = s->pin_hold_map & (1ul << pin);
+        if (!down == !value)
+            return;
     }
-    trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, -1, -1);
+
+    // Update IO outputs
+    trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, -1, -1, pin);
+    s->pin_hold_map ^= 1ul << pin;
+    qemu_set_irq(s->pin.irq[pin], (!down) ^ ((s->pin.inv >> pin) & 1));
     return;
 
 key_found:
@@ -224,7 +249,7 @@ key_found:
     }
 
     // Update IO outputs
-    trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, row, col);
+    trace_gpio_matrix_keypad_event(QKeyCode_str(qcode), down, row, col, -1);
     s->btn_hold_map[row] ^= 1ul << col;
     if (down)
         s->btn_press_map[row] |= 1ul << col;
@@ -313,6 +338,15 @@ static void gpio_matrix_keypad_load_keymap_file(GpioMatrixKeypad *s, char *path)
                                 }
                                 s->key_map[row * s->col.num_pins + pin] = key_code;
                             }
+                        } else if (g_str_has_prefix(key, "pin-")) {
+                            int pin = g_ascii_strtoull(key + 4, NULL, 0);
+                            Error *errp = NULL;
+                            int key_code = qapi_enum_parse(&QKeyCode_lookup, value, Q_KEY_CODE_UNMAPPED, &errp);
+                            if (errp) {
+                                warn_report(TYPE_GPIO_MATRIX_KEYPAD ": %s:%d invalid key \"%s\" ignored",
+                                    path, line_cnt, value);
+                            }
+                            s->pin_key_map[pin] = key_code;
                         }
                     }
                 }
@@ -336,13 +370,16 @@ static void gpio_matrix_keypad_realize(DeviceState *dev, Error **errp)
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(dev);
     s->row.irq = g_new(qemu_irq, s->row.num_pins);
     s->col.irq = g_new(qemu_irq, s->col.num_pins);
+    s->pin.irq = g_new(qemu_irq, s->pin.num_pins);
     qdev_init_gpio_in_named_with_opaque(dev, &gpio_matrix_keypad_row_in, s, "row-in", s->row.num_pins);
     qdev_init_gpio_in_named_with_opaque(dev, &gpio_matrix_keypad_col_in, s, "col-in", s->col.num_pins);
     qdev_init_gpio_out_named(dev, s->row.irq, "row-out", s->row.num_pins);
     qdev_init_gpio_out_named(dev, s->col.irq, "col-out", s->col.num_pins);
+    qdev_init_gpio_out_named(dev, s->pin.irq, "pin-out", s->pin.num_pins);
 
     // Read key map file
     s->key_map = g_new0(QKeyCode, s->row.num_pins * s->col.num_pins);
+    s->pin_key_map = g_new0(QKeyCode, s->pin.num_pins);
     if (!s->map_file)
         warn_report(TYPE_GPIO_MATRIX_KEYPAD ": map-file not set");
     else
@@ -351,7 +388,8 @@ static void gpio_matrix_keypad_realize(DeviceState *dev, Error **errp)
     s->btn_hold_map = g_new0(uint32_t, s->row.num_pins);
     s->btn_press_map = g_new0(uint32_t, s->row.num_pins);
     gpio_matrix_keypad_reset(OBJECT(dev), RESET_TYPE_COLD);
-
+    // Device is not on a bus, reset needs to be registered explicitly
+    qemu_register_resettable(OBJECT(dev));
     qemu_input_handler_register(dev, &gpio_matrix_keypad_handler);
 }
 
@@ -362,6 +400,7 @@ static void gpio_matrix_keypad_init(Object *obj)
     GpioMatrixKeypad *s = GPIO_MATRIX_KEYPAD(obj);
     s->row.name = "row";
     s->col.name = "col";
+    s->pin.name = "pin";
 }
 
 static void gpio_matrix_keypad_finalize(Object *obj)
@@ -370,17 +409,22 @@ static void gpio_matrix_keypad_finalize(Object *obj)
     g_free(s->btn_press_map);
     g_free(s->btn_hold_map);
     g_free(s->key_map);
+    g_free(s->pin.irq);
     g_free(s->col.irq);
     g_free(s->row.irq);
 }
 
 static const Property gpio_matrix_keypad_properties[] = {
-    DEFINE_PROP_UINT8("num-rows", GpioMatrixKeypad, row.num_pins,  5),
-    DEFINE_PROP_UINT8("num-cols", GpioMatrixKeypad, col.num_pins, 13),
+    DEFINE_PROP_UINT8("num-rows", GpioMatrixKeypad, row.num_pins, 32),
+    DEFINE_PROP_UINT8("num-cols", GpioMatrixKeypad, col.num_pins, 32),
+    DEFINE_PROP_UINT8("num-pins", GpioMatrixKeypad, pin.num_pins, 32),
     DEFINE_PROP_UINT32("row-pull", GpioMatrixKeypad, row.ext_pull, 0),
     DEFINE_PROP_UINT32("row-pull-value", GpioMatrixKeypad, row.ext_pull_value, 0),
     DEFINE_PROP_UINT32("col-pull", GpioMatrixKeypad, col.ext_pull, 0),
     DEFINE_PROP_UINT32("col-pull-value", GpioMatrixKeypad, col.ext_pull_value, 0),
+    DEFINE_PROP_UINT32("pin-pull", GpioMatrixKeypad, pin.ext_pull, 0xffffffff),
+    DEFINE_PROP_UINT32("pin-pull-value", GpioMatrixKeypad, pin.ext_pull_value, 0xffffffff),
+    DEFINE_PROP_UINT32("pin-invert", GpioMatrixKeypad, pin.inv, 0),
     DEFINE_PROP_STRING("map-file", GpioMatrixKeypad, map_file),
 };
 
@@ -391,11 +435,6 @@ static void gpio_matrix_keypad_class_init(ObjectClass *class, const void *data)
     dc->realize = gpio_matrix_keypad_realize;
     // dc->vmsd = &vmstate_lm_kbd;
 
-    GpioMatrixKeypadClass *kp_class = GPIO_MATRIX_KEYPAD_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       gpio_matrix_keypad_reset,
-                                       NULL,
-                                       NULL,
-                                       &kp_class->parent_phases);
+    rc->phases.exit = gpio_matrix_keypad_reset;
 }

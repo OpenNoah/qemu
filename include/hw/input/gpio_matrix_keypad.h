@@ -32,6 +32,7 @@ typedef struct GpioMatrixKeypadIO {
     uint8_t num_pins;
     uint32_t ext_pull;
     uint32_t ext_pull_value;
+    uint32_t inv;
     uint32_t floating;
     uint32_t pull;
     uint32_t value;
@@ -40,11 +41,13 @@ typedef struct GpioMatrixKeypadIO {
 typedef struct GpioMatrixKeypad
 {
     DeviceState parent_obj;
-    GpioMatrixKeypadIO row, col;
+    GpioMatrixKeypadIO row, col, pin;
     char *map_file;
     QKeyCode *key_map;
     uint32_t *btn_hold_map;
     uint32_t *btn_press_map;
+    QKeyCode *pin_key_map;
+    uint32_t pin_hold_map;
 } GpioMatrixKeypad;
 
 typedef struct GpioMatrixKeypadClass
