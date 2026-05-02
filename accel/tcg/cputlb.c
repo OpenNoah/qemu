@@ -1954,7 +1954,7 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         r = memory_region_dispatch_read(mr, mr_offset, &val,
                                         this_mop, full->attrs);
         if (unlikely(r != MEMTX_OK)) {
-            trace_mmio_failed(addr, mr_offset);
+            trace_mmio_load_failed(addr, mr_offset);
             qmp_stop(NULL);
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
         }
@@ -2469,10 +2469,8 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
         r = memory_region_dispatch_write(mr, mr_offset, val_le,
                                          this_mop, full->attrs);
         if (unlikely(r != MEMTX_OK)) {
-#if 1
-            printf("Failed mem write " HWADDR_FMT_plx " = 0x%"PRIx64"\n", addr, val_le);
+            trace_mmio_store_failed(addr, mr_offset, val_le);
             qmp_stop(NULL);
-#endif
             io_failed(cpu, full, addr, this_size, MMU_DATA_STORE,
                       mmu_idx, r, ra);
         }
