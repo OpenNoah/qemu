@@ -210,6 +210,9 @@ static uint64_t ingenic_aic_read(void *opaque, hwaddr addr, unsigned size)
     case REG_RGADW:
         qemu_log_mask(LOG_UNIMP, "%s: CODEC not implemented\n", __func__);
         return data;
+    case REG_RGDATA:
+        qemu_log_mask(LOG_UNIMP, "%s: CODEC not implemented\n", __func__);
+        return data;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
