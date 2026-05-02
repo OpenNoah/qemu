@@ -153,7 +153,6 @@ static void ingenic_i2c_write(void *opaque, hwaddr addr, uint64_t data, unsigned
                     s->state = IngenicI2cNak;
                     qemu_log_mask(LOG_GUEST_ERROR, "%s: I2C NAK from 0x%02x\n",
                                   __func__, s->dr >> 1);
-                    qmp_stop(NULL);
                 } else {
                     // Start returned ACK
                     trace_ingenic_i2c_event("ACK", 0);
@@ -217,11 +216,6 @@ static void ingenic_i2c_finalize(Object *obj)
 
 static void ingenic_i2c_class_init(ObjectClass *class, const void *data)
 {
-    IngenicI2cClass *bch_class = INGENIC_I2C_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_i2c_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = &ingenic_i2c_reset;
 }
