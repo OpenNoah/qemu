@@ -34,6 +34,8 @@
 #include "hw/misc/ingenic_cpm.h"
 #include "trace.h"
 
+#define CLOCK_TYPE  QEMU_CLOCK_REALTIME
+
 // Timer status
 #define REG_TSTR    0xf0    // 4750, 4755
 #define REG_TSTSR   0xf4    // 4750, 4755
@@ -149,7 +151,7 @@ static void tmr_update_cnt(IngenicTcuTimerCommon *tmr)
     uint64_t delta_ticks = 0;
     if (tmr->enabled) {
         // Timer is running, update from current time
-        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t now_ns = qemu_clock_get_ns(CLOCK_TYPE);
         int64_t delta_ns = now_ns - tmr->qts_start_ns;
         // To avoid wrapping around in calculations, advance starting ns time
         if (delta_ns >= 1000000000) {
@@ -190,7 +192,7 @@ static void tmr_update_cnt(IngenicTcuTimerCommon *tmr)
 
 static void tmr_cb(void *opaque)
 {
-    trace_ingenic_tcu_callback(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    trace_ingenic_tcu_callback(qemu_clock_get_ns(CLOCK_TYPE));
     IngenicTcuTimerCommon *tmr = opaque;
     tmr_update_cnt(tmr);
     tmr_schedule(tmr);
@@ -202,7 +204,7 @@ static void tmr_enable(IngenicTcuTimerCommon *tmr, bool en)
         tmr_update_cnt(tmr);
         timer_del(&tmr->qts);
     } else {
-        tmr->qts_start_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        tmr->qts_start_ns = qemu_clock_get_ns(CLOCK_TYPE);
         tmr->clk_ticks = 0;
         //qemu_log("%s: start_ns %"PRIi64"\n", __func__, tmr->qts_start_ns);
         tmr_schedule(tmr);
@@ -448,7 +450,7 @@ static void ingenic_tcu_init(Object *obj)
         s->tcu.timer[i].tmr.tcu = s;
         s->tcu.timer[i].tmr.irq_top_mask  = 0x00000001 << i;
         s->tcu.timer[i].tmr.irq_comp_mask = 0x00010000 << i;
-        timer_init_ns(&s->tcu.timer[i].tmr.qts, QEMU_CLOCK_VIRTUAL,
+        timer_init_ns(&s->tcu.timer[i].tmr.qts, CLOCK_TYPE,
                       &tmr_cb, &s->tcu.timer[i].tmr);
     }
 
@@ -456,7 +458,7 @@ static void ingenic_tcu_init(Object *obj)
     s->ost.tmr.tcu = s;
     s->ost.tmr.irq_top_mask  = 0x00008000;
     s->ost.tmr.irq_comp_mask = 0x00008000;
-    timer_init_ns(&s->ost.tmr.qts, QEMU_CLOCK_VIRTUAL, &tmr_cb, &s->ost.tmr);
+    timer_init_ns(&s->ost.tmr.qts, CLOCK_TYPE, &tmr_cb, &s->ost.tmr);
 
     // Interrupts
     qdev_init_gpio_out_named(DEVICE(obj), &s->irq[0], "irq-out", 3);
