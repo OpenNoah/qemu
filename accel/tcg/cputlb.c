@@ -1954,10 +1954,8 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         r = memory_region_dispatch_read(mr, mr_offset, &val,
                                         this_mop, full->attrs);
         if (unlikely(r != MEMTX_OK)) {
-#if 1
-            printf("Failed mem read " HWADDR_FMT_plx "\n", addr);
+            trace_mmio_failed(addr, mr_offset);
             qmp_stop(NULL);
-#endif
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
         }
         if (this_size == 8) {
