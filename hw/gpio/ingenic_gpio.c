@@ -139,6 +139,9 @@ static void ingenic_gpio_update_irq(IngenicGpio *s, uint32_t prev_pin)
     s->flg |= imask & ~edge &  dir &  s->pin;
     s->flg |= imask & ~edge & ~dir & ~s->pin;
 
+    // Clear interrupt flag if GPIO is no longer an interrupt
+    s->flg &= imask;
+
     // Update IRQ output
     int irq = !!(~s->im & s->flg);
     if (irq != s->prev_irq_level) {
@@ -334,11 +337,6 @@ static const Property ingenic_gpio_properties[] = {
 static void ingenic_gpio_class_init(ObjectClass *class, const void *data)
 {
     device_class_set_props(DEVICE_CLASS(class), ingenic_gpio_properties);
-    IngenicGpioClass *gpio_class = INGENIC_GPIO_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_gpio_reset,
-                                       NULL,
-                                       NULL,
-                                       &gpio_class->parent_phases);
+    rc->phases.enter = ingenic_gpio_reset;
 }
