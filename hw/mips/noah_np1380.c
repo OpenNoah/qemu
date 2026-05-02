@@ -130,13 +130,17 @@ static void mips_noah_np1380_init(MachineState *machine)
     GpioMatrixKeypad *kp = GPIO_MATRIX_KEYPAD(qdev_new(TYPE_GPIO_MATRIX_KEYPAD));
     // Extra row+col used to implement power key
     // TODO implement proper GPIO keypad
-    object_property_set_uint(OBJECT(kp), "num-rows", 3 + 1, &error_fatal);
-    object_property_set_uint(OBJECT(kp), "num-cols", 4 + 1, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "num-rows", 3, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "num-cols", 4, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "num-pins", 32, &error_fatal);
     // Attach pull-ups to all rows and cols
-    object_property_set_uint(OBJECT(kp), "row-pull", 0xfffffff7, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "row-pull", 0xffffffff, &error_fatal);
     object_property_set_uint(OBJECT(kp), "row-pull-value", 0xffffffff, &error_fatal);
     object_property_set_uint(OBJECT(kp), "col-pull", 0xffffffff, &error_fatal);
-    object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffef, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-invert", 0, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-pull", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-pull-value", 0xffffffff, &error_fatal);
     qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
 
     // Keypad IO connections
@@ -178,12 +182,16 @@ static void mips_noah_np1380_init(MachineState *machine)
         qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 1));
 #endif
 
-    // PC23: LCD select, 0: KD035G6, 1: PT035TN01_V5
-    qemu_irq lcd_sel = qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 23);
-    qemu_irq_raise(lcd_sel);
     // PD29: POWER key, 0: pressed
-    qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 29);
-    qdev_connect_gpio_out_named(DEVICE(kp), "row-out", 3, power_key);
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 0, qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 29));
+    // PB30: Charging status, 1: charging done
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 1, qdev_get_gpio_in_named(DEVICE(soc->gpio['B' - 'A']), "gpio-in", 30));
+    // PB29: USB device port, 1: connected
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 2, qdev_get_gpio_in_named(DEVICE(soc->gpio['B' - 'A']), "gpio-in", 29));
+    // PB27: SD card, 1: inserted
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 3, qdev_get_gpio_in_named(DEVICE(soc->gpio['B' - 'A']), "gpio-in", 27));
+    // PC23: LCD select, 0: KD035G6, 1: PT035TN01_V5
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 31, qdev_get_gpio_in_named(DEVICE(soc->gpio['C' - 'A']), "gpio-in", 23));
 }
 
 static void mips_noah_np1380_machine_init(MachineClass *mc)
