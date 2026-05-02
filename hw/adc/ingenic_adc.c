@@ -32,9 +32,9 @@
 #include "hw/adc/ingenic_adc.h"
 #include "trace.h"
 
-#define ADC_SAMPLE_RATE_HZ  (180 * 1000)
+#define ADC_SAMPLE_RATE_HZ  (187500)
 #define ADC_UPDATE_NS       ((1000 * 1000 * 1000) / ADC_SAMPLE_RATE_HZ)
-#define TS_SAMPLE_RATE_HZ   (500)
+#define TS_SAMPLE_RATE_HZ   (1000)
 #define TS_UPDATE_NS        ((1000 * 1000 * 1000) / TS_SAMPLE_RATE_HZ)
 
 #define REG_ADENA   0x00
@@ -64,6 +64,10 @@ static void ingenic_adc_reset(Object *obj, ResetType type)
     s->adcfg = 0;
     s->adctrl = 0;
     s->adstate = 0;
+    s->x = 0;
+    s->y = 0;
+    for (int i = 0; i < ARRAY_SIZE(s->z); i++)
+        s->z[i] = 0;
 }
 
 static void ingenic_adc_update_irq(IngenicAdc *s)
@@ -82,11 +86,6 @@ static void ingenic_adc_update_irq(IngenicAdc *s)
 static void ingenic_adc_ts_timer(void *opaque)
 {
     IngenicAdc *s = INGENIC_ADC(opaque);
-    if (!(s->adena & BIT(2)) || !s->pressed) {
-        // Pen up, timer no longer needed
-        timer_del(&s->ts_timer);
-        return;
-    }
 
     // Set up timer to re-trigger touchscreen data ready interrupt
     int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -134,8 +133,6 @@ static void ingenic_adc_ts_event(void *opaque, int x, int y, int z, int buttons_
         s->z[2] = 100;
         s->z[3] = 100;
     }
-    if (update)
-        ingenic_adc_ts_timer(s);
     if (pressed || update)
         trace_ingenic_adc_ts(pressed, s->x, s->y, s->z[0], s->z[1], s->z[2], s->z[3]);
 }
@@ -152,6 +149,16 @@ static void ingenic_adc_sampler_enable(IngenicAdc *s)
     if (next != IngenicAdcSamplerIdle) {
         int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         timer_mod_anticipate_ns(&s->sampler_timer, now_ns + ADC_UPDATE_NS);
+    }
+
+    if (s->adena & BIT(2)) {
+        // Touch screen sampling enabled
+        // Set up timer to re-trigger touchscreen data ready interrupt
+        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_mod_anticipate_ns(&s->ts_timer, now_ns + TS_UPDATE_NS);
+    } else {
+        // Touch screen sampling disabled
+        timer_del(&s->ts_timer);
     }
 }
 
@@ -236,13 +243,15 @@ static uint64_t ingenic_adc_read(void *opaque, hwaddr addr, unsigned size)
             data = 0;
         }
         break;
-    case REG_ADBDAT:
+    case REG_ADBDAT: {
         // TODO PBAT data
+        float vbat = 3.7;
         if (s->adcfg & BIT(4))
-            data = 1.8 / 2.5 * 4095.;
+            data = vbat / 2.0 / 2.5 * 4095.;
         else
-            data = 4.0 / 7.5 * 4095.;
+            data = vbat / 7.5 * 4095.;
         break;
+    }
     case REG_ADSDAT:
         // TODO SADCIN data
         data = 3.2 / 3.3 * 4095.;
