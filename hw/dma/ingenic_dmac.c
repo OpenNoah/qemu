@@ -92,11 +92,11 @@ static void ingenic_dmac_update_irq(IngenicDmac *s, int dmac, int ch)
         ((dcm & BIT(1)) && (dcs & BIT(3))) |
         // Unmaskable errors
         (dcs & BIT(4)))
-        dirqp |= 1 << ch;
+        dirqp |= BIT(ch);
     // Clearing DCS.CTE also clears DIRQP
     // Document says DCS.CT, but I believe only CTE makes sense?
     if (!(dcs & BIT(0)))
-        dirqp = 0;
+        dirqp &= ~BIT(ch);
 
     bool update = !(dirqp) != !(s->reg[dmac].dirqp);
     s->reg[dmac].dirqp = dirqp;
