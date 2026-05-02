@@ -56,11 +56,6 @@ static void mips_noah_np6800_init(MachineState *machine)
     object_property_set_uint(OBJECT(sdram), "size", 0x04000000, &error_fatal);
     qdev_realize_and_unref(DEVICE(sdram), NULL, &error_fatal);
 
-    // Connect GPIOs
-    // PE30: POWER key, active low
-    qemu_irq power_key = qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30);
-    qemu_irq_raise(power_key);
-
     // Keypad matrix
     GpioMatrixKeypad *kp = GPIO_MATRIX_KEYPAD(qdev_new(TYPE_GPIO_MATRIX_KEYPAD));
     object_property_set_uint(OBJECT(kp), "num-rows", 16, &error_fatal);
@@ -69,6 +64,9 @@ static void mips_noah_np6800_init(MachineState *machine)
     object_property_set_uint(OBJECT(kp), "row-pull-value", 0xffffffff, &error_fatal);
     object_property_set_uint(OBJECT(kp), "col-pull", 0, &error_fatal);
     object_property_set_uint(OBJECT(kp), "col-pull-value", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-invert", 0, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-pull", 0xffffffff, &error_fatal);
+    object_property_set_uint(OBJECT(kp), "pin-pull-value", 0xffffffff, &error_fatal);
     qdev_realize_and_unref(DEVICE(kp), NULL, &error_fatal);
 
     // Keypad IO connections
@@ -116,6 +114,17 @@ static void mips_noah_np6800_init(MachineState *machine)
         qdev_connect_gpio_out_named(DEVICE(kp), name, *pi_kp, irq);
         *pi_kp += 1;
     }
+
+    // PE30: POWER key, active low
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 0, qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 30));
+    // PD29: Charging status, 1: charging done
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 1, qdev_get_gpio_in_named(DEVICE(soc->gpio['D' - 'A']), "gpio-in", 29));
+    // PF19: External power, 1: connected
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 2, qdev_get_gpio_in_named(DEVICE(soc->gpio['F' - 'A']), "gpio-in", 19));
+    // PE2: SD card, 1: inserted
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 3, qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 2));
+    // PE16: USB device port, 1: connected
+    qdev_connect_gpio_out_named(DEVICE(kp), "pin-out", 4, qdev_get_gpio_in_named(DEVICE(soc->gpio['E' - 'A']), "gpio-in", 16));
 
 #if FIRMWARE_UPGRADE
     // Fixed GPIO for triggering firmware upgrade
