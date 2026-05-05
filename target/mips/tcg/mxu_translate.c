@@ -3214,8 +3214,10 @@ static void gen_mxu_q16add(DisasContext *ctx)
     tcg_gen_shli_tl(t4, t4, 16);
     tcg_gen_extract_tl(t5, t5, 0, 16);
 
-    tcg_gen_or_tl(mxu_gpr[XRa - 1], t4, t5);
-    tcg_gen_or_tl(mxu_gpr[XRd - 1], t0, t1);
+    if (XRa != 0)
+        tcg_gen_or_tl(mxu_gpr[XRa - 1], t4, t5);
+    if (XRd != 0)
+        tcg_gen_or_tl(mxu_gpr[XRd - 1], t0, t1);
 }
 
 /*
