@@ -47,7 +47,6 @@ typedef struct IngenicIntc
 typedef struct IngenicIntcClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicIntcClass;
 
 #endif /* INGENIC_INTC_H */

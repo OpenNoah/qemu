@@ -47,11 +47,6 @@ static void intc_update(IngenicIntc *s)
     if (diff) {
         qemu_set_irq(s->irq, !!s->icpr);
         trace_ingenic_intc_update(s->icsr, s->icpr);
-#if 0
-        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        qemu_log("%s: time %.6f pending 0x%"PRIx32" unmasked 0x%"PRIx32"\n",
-                 __func__, (double)now_ns / 1000000000., s->icsr, s->icpr);
-#endif
     }
 }
 
@@ -149,11 +144,6 @@ static void ingenic_intc_finalize(Object *obj)
 
 static void ingenic_intc_class_init(ObjectClass *class, const void *data)
 {
-    IngenicIntcClass *bch_class = INGENIC_INTC_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_intc_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = ingenic_intc_reset;
 }
