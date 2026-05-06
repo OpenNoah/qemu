@@ -87,12 +87,14 @@ static void ingenic_adc_ts_timer(void *opaque)
 {
     IngenicAdc *s = INGENIC_ADC(opaque);
 
-    // Set up timer to re-trigger touchscreen data ready interrupt
-    int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    timer_mod_anticipate_ns(&s->ts_timer, now_ns + TS_UPDATE_NS);
+    if (s->pressed) {
+        // Set up timer to re-trigger touchscreen data ready interrupt
+        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_mod_anticipate_ns(&s->ts_timer, now_ns + TS_UPDATE_NS);
 
-    s->adstate |= BIT(2);
-    ingenic_adc_update_irq(s);
+        s->adstate |= BIT(2);
+        ingenic_adc_update_irq(s);
+    }
 }
 
 static void ingenic_adc_ts_event(void *opaque, int x, int y, int z, int buttons_state)
@@ -132,6 +134,11 @@ static void ingenic_adc_ts_event(void *opaque, int x, int y, int z, int buttons_
         s->z[1] = 100;
         s->z[2] = 100;
         s->z[3] = 100;
+    }
+    if (pressed && update) {
+        // Set up timer to re-trigger touchscreen data ready interrupt
+        int64_t now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_mod_anticipate_ns(&s->ts_timer, now_ns + TS_UPDATE_NS);
     }
     if (pressed || update)
         trace_ingenic_adc_ts(pressed, s->x, s->y, s->z[0], s->z[1], s->z[2], s->z[3]);
