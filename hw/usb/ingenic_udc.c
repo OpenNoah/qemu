@@ -61,6 +61,11 @@ static void ingenic_udc_irq(void *opaque, int source, int level)
 static void ingenic_udc_dma_ch_write(IngenicUdc *s, uint32_t ch, uint32_t reg, uint32_t value)
 {
     switch (reg) {
+    case 0:
+        // Buggy software may try to write to this address
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: CH%u Unknown reg 0x%x 0x%0x\n",
+            __func__, ch, reg, value);
+        break;
     case DMA_CNTL:
         s->dma[ch].cntl = value & 0x07ff;
         if (s->dma[ch].cntl & 1) {
@@ -76,7 +81,7 @@ static void ingenic_udc_dma_ch_write(IngenicUdc *s, uint32_t ch, uint32_t reg, u
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: CH%u Unknown reg 0x%x 0x%0x\n",
-                      __func__, ch, reg, value);
+            __func__, ch, reg, value);
         qmp_stop(NULL);
     }
 }
@@ -100,6 +105,9 @@ static uint64_t ingenic_udc_read(void *opaque, hwaddr addr, unsigned size)
         default:
             g_assert_not_reached();
         }
+        break;
+    case DMA_INTR:
+        value = s->dma_intr;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unknown address " HWADDR_FMT_plx "\n", __func__, addr);
@@ -128,6 +136,9 @@ static void ingenic_udc_write(void *opaque, hwaddr addr, uint64_t value, unsigne
         default:
             g_assert_not_reached();
         }
+        break;
+    case DMA_INTR:
+        s->dma_intr = value;
         break;
     case (DMA_CH_BASE + 4) ... (DMA_CH_BASE + INGENIC_UDC_MAX_DMA_CHANNELS * (DMA_CH_SIZE) - 1):
         ingenic_udc_dma_ch_write(s, (addr - DMA_CH_BASE) / INGENIC_UDC_MAX_DMA_CHANNELS,
