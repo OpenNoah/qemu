@@ -50,64 +50,9 @@
 #include "hw/input/stmpe2403.h"
 #include "hw/input/d88_matrix_keypad.h"
 
-typedef struct ResetData {
-    MIPSCPU *cpu;
-    uint64_t vector;
-} ResetData;
-
-static void main_cpu_reset(void *opaque)
-{
-    ResetData *s = (ResetData *)opaque;
-    CPUMIPSState *env = &s->cpu->env;
-
-    cpu_reset(CPU(s->cpu));
-    env->active_tc.PC = s->vector & ~(target_ulong)1;
-}
-
 static void mips_iriver_d88_init(MachineState *machine)
 {
-    char *filename;
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *bootrom = g_new(MemoryRegion, 1);
-    IngenicJZ4755 *soc;
-    CPUMIPSState *env;
-    ResetData *reset_info;
-    int bootrom_size;
-
-    // Board-specific parameters
-    //machine->ram_size = 64 * 1024 * 1024;
-
-    /* Init CPUs. */
-    soc = ingenic_jz4755_init(machine);
-    env = &soc->cpu->env;
-
-    reset_info = g_new0(ResetData, 1);
-    reset_info->cpu = soc->cpu;
-    reset_info->vector = env->active_tc.PC;
-    qemu_register_reset(main_cpu_reset, reset_info);
-
-    /* Allocate RAM. */
-    memory_region_init_rom(bootrom, NULL, "mips_iriver_d88.bootrom", 8 * 1024,
-                           &error_fatal);
-
-    /* Map the BIOS / boot exception handler. */
-    memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bootrom);
-    /* Load a BIOS / boot exception handler image. */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
-    if (filename) {
-        bootrom_size = load_image_mr(filename, bootrom);
-        g_free(filename);
-    } else {
-        bootrom_size = -1;
-    }
-    if (bootrom_size < 0 && machine->firmware && !qtest_enabled()) {
-        /* Bail out if we have neither a kernel image nor boot vector code. */
-        error_report("Could not load MIPS bios '%s'", machine->firmware);
-        exit(1);
-    } else {
-        /* We have a boot vector start address. */
-        env->active_tc.PC = (target_long)(int32_t)0xbfc00000;
-    }
+    IngenicJZ4755 *soc = ingenic_jz4755_init(machine);
 
     // Register SDRAM at DCS 0
     IngenicEmcSdram *sdram = INGENIC_EMC_SDRAM(qdev_new(TYPE_INGENIC_EMC_SDRAM));

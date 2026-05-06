@@ -26,6 +26,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/datadir.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/system.h"
 
@@ -187,12 +189,14 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     // 0x10021000 Register MSC0 on APB
     IngenicMsc *msc0 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
+    object_property_set_str(OBJECT(msc0), "bus", "sd-bus-msc0", &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(msc0), &error_fatal);
     MemoryRegion *msc0_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc0), 0);
     memory_region_add_subregion(apb, 0x00021000, msc0_mr);
 
     // 0x10022000 Register MSC1 on APB
     IngenicMsc *msc1 = INGENIC_MSC(qdev_new(TYPE_INGENIC_MSC));
+    object_property_set_str(OBJECT(msc1), "bus", "sd-bus-msc1", &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(msc1), &error_fatal);
     MemoryRegion *msc1_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc1), 0);
     memory_region_add_subregion(apb, 0x00022000, msc1_mr);
@@ -252,7 +256,8 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
         // 30 IPU
         {DEVICE(dmac), "irq-out", 0, 29},
         {DEVICE(dmac), "irq-out", 1, 28},
-        // 24 MSC1
+        {DEVICE(msc0), "irq-out", 0, 25},
+        {DEVICE(msc1), "irq-out", 0, 24},
         {DEVICE(tcu),  "irq-out", 0, 23},
         {DEVICE(tcu),  "irq-out", 1, 22},
         {DEVICE(tcu),  "irq-out", 2, 21},
@@ -283,6 +288,22 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
     // Connect DMA requests
     qdev_connect_gpio_out(nand_rb_splitter, 1,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
+
+    // 0x1fc00000 On-chip Boot ROM (8KiB)
+    MemoryRegion *bootrom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(bootrom, NULL, "bootrom", 8 * 1024, &error_fatal);
+    memory_region_add_subregion(sys_mem, 0x1fc00000, bootrom);
+    // Load bootrom image
+    char *bootrom_file = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+    ssize_t bootrom_size = -1;
+    if (bootrom_file) {
+        bootrom_size = load_image_mr(bootrom_file, bootrom);
+        g_free(bootrom_file);
+    }
+    if (bootrom_size < 0 && machine->firmware) {
+        error_report("Could not load MIPS bios '%s'", machine->firmware);
+        exit(1);
+    }
 
     return soc;
 }
