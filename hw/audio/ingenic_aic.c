@@ -196,6 +196,14 @@ static uint64_t ingenic_aic_read(void *opaque, hwaddr addr, unsigned size)
     case REG_AICSR:
         data = s->reg.aicsr;
         break;
+    case REG_ACSR:
+        qemu_log_mask(LOG_UNIMP, "%s: ACSR not implemented\n", __func__);
+        data = 0x00130000;
+        break;
+    case REG_I2SSR:
+        qemu_log_mask(LOG_UNIMP, "%s: ACSR not implemented\n", __func__);
+        data = 0;
+        break;
     case REG_I2SDIV:
         data = s->reg.i2sdiv;
         break;
@@ -238,6 +246,9 @@ static void ingenic_aic_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_I2SCR:
         s->reg.i2scr = data & 0x1011;
+        break;
+    case REG_AICSR:
+        qemu_log_mask(LOG_UNIMP, "%s: AICSR not implemented\n", __func__);
         break;
     case REG_I2SDIV:
         s->reg.i2sdiv = data & 0x0f;
