@@ -52,7 +52,7 @@ typedef struct IngenicLcd
     uint32_t yres;
     uint32_t mode;
     uint32_t osd_mode[2];
-    bool invalidate;
+    uint16_t palette[256];
     bool field;
 
     // Registers
@@ -90,7 +90,6 @@ typedef struct IngenicLcd
 typedef struct IngenicLcdClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicLcdClass;
 
 #endif /* INGENIC_LCD_H */

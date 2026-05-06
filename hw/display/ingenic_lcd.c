@@ -90,6 +90,12 @@
 
 void qmp_stop(Error **errp);
 
+typedef struct {
+    MemoryRegionSection mem;
+    void *src;
+    int bpp;
+} lcd_dma_channel_t;
+
 static void ingenic_lcd_update_irq(IngenicLcd *s)
 {
     bool irq = !!(s->lcdstate & (s->lcdctrl >> 8) & 0x3f);
@@ -97,197 +103,231 @@ static void ingenic_lcd_update_irq(IngenicLcd *s)
     qemu_set_irq(s->irq, irq);
 }
 
-static void draw_row(void *opaque, uint8_t *dst, const uint8_t *src,
-                     int width, int deststep)
+static inline void ingenic_lcd_draw_row(IngenicLcd *s, int y, void *dst, int dst_stride, int dst_bpp, lcd_dma_channel_t dma[2])
 {
-    IngenicLcd *s = INGENIC_LCD(opaque);
-    DisplaySurface *surface = qemu_console_surface(s->con);
-    int bpp = surface_bits_per_pixel(surface);
+    uint8_t *dst_u8 = dst + dst_stride * y;
+    uint8_t *src_u8[2];
+    for (int idma = 0; idma < 2; idma++) {
+        uint32_t src_stride = 0;
+        switch (dma[idma].bpp) {
+        case 4:
+            src_stride = s->xres / 2;
+            break;
+        case 16:
+            src_stride = s->xres * 2;
+            break;
+        case 32:
+            src_stride = s->xres * 4;
+            break;
+        }
+        src_u8[idma] = dma[idma].src + src_stride * y;
+    }
 
-    while (width--) {
-        uint32_t tmp;
-        uint8_t r = 0;
-        uint8_t g = 0;
-        uint8_t b = 0;
+    for (int x = 0; x < s->xres; x++) {
+        uint32_t v = 0;
+        uint8_t r = 0, g = 0, b = 0;
+        uint8_t r2 = 0, g2 = 0, b2 = 0;
         switch (s->mode) {
+        case 4565:
+            v = *src_u8[0];
+            if (x & 1) {
+                v >>= 4;
+                src_u8[0] += 1;
+            }
+            v &= 0x0f;
+            v = s->palette[v];
+            r = (v >> 8) & 0xf8;
+            g = (v >> 3) & 0xfc;
+            b = (v << 3) & 0xf8;
+
+            // TODO: DMA channel 1 not applicable when OSD mode is disabled
+            memcpy(&v, src_u8[1], 2);
+            src_u8[1] += 2;
+            r2 = (v >> 8) & 0xf8;
+            g2 = (v >> 3) & 0xfc;
+            b2 = (v << 3) & 0xf8;
+
+            // TODO: Alpha blending
+            r = r2;
+            g = g2;
+            b = b2;
+            break;
         case 565:
-            tmp = *(uint16_t *)src;
-            src += 2;
+            memcpy(&v, src_u8[0], 2);
+            src_u8[0] += 2;
             if (s->model == IngenicLcdModelDeltaRGB && s->field) {
-                g = (tmp >> 8) & 0xf8;
-                b = (tmp >> 3) & 0xfc;
-                r = (tmp << 3) & 0xf8;
+                g = (v >> 8) & 0xf8;
+                b = (v >> 3) & 0xfc;
+                r = (v << 3) & 0xf8;
             } else {
-                r = (tmp >> 8) & 0xf8;
-                g = (tmp >> 3) & 0xfc;
-                b = (tmp << 3) & 0xf8;
+                r = (v >> 8) & 0xf8;
+                g = (v >> 3) & 0xfc;
+                b = (v << 3) & 0xf8;
             }
             break;
         case 666:
             if (s->model == IngenicLcdModelDeltaRGB && s->field) {
-                r = *src++ & 0xfc;
-                b = *src++ & 0xfc;
-                g = *src++ & 0xfc;
+                r = *src_u8[0]++ & 0xfc;
+                b = *src_u8[0]++ & 0xfc;
+                g = *src_u8[0]++ & 0xfc;
             } else {
-                b = *src++ & 0xfc;
-                g = *src++ & 0xfc;
-                r = *src++ & 0xfc;
+                b = *src_u8[0]++ & 0xfc;
+                g = *src_u8[0]++ & 0xfc;
+                r = *src_u8[0]++ & 0xfc;
             }
-            src++;
+            src_u8[0]++;
             break;
         case 888:
             if (s->model == IngenicLcdModelDeltaRGB && s->field) {
-                r = *src++;
-                b = *src++;
-                g = *src++;
+                r = *src_u8[0]++;
+                b = *src_u8[0]++;
+                g = *src_u8[0]++;
             } else {
-                b = *src++;
-                g = *src++;
-                r = *src++;
+                b = *src_u8[0]++;
+                g = *src_u8[0]++;
+                r = *src_u8[0]++;
             }
-            src++;
+            src_u8[0]++;
             break;
         }
 
-        switch (bpp) {
+        switch (dst_bpp) {
         case 8:
-            *dst++ = rgb_to_pixel8(r, g, b);
+            *dst_u8++ = rgb_to_pixel8(r, g, b);
             break;
         case 15:
-            *(uint16_t *)dst = rgb_to_pixel15(r, g, b);
-            dst += 2;
+            v = rgb_to_pixel15(r, g, b);
+            memcpy(dst_u8, &v, 2);
+            dst_u8 += 2;
             break;
         case 16:
-            *(uint16_t *)dst = rgb_to_pixel16(r, g, b);
-            dst += 2;
+            v = rgb_to_pixel16(r, g, b);
+            memcpy(dst_u8, &v, 2);
+            dst_u8 += 2;
             break;
         case 24:
-            tmp = rgb_to_pixel24(r, g, b);
-            *dst++ = (tmp >>  0) & 0xff;
-            *dst++ = (tmp >>  8) & 0xff;
-            *dst++ = (tmp >> 16) & 0xff;
+            v = rgb_to_pixel24(r, g, b);
+            memcpy(dst_u8, &v, 3);
+            dst_u8 += 3;
             break;
         case 32:
-            *(uint32_t *)dst = rgb_to_pixel32(r, g, b);
-            dst += 4;
+            v = rgb_to_pixel32(r, g, b);
+            memcpy(dst_u8, &v, 4);
+            dst_u8 += 4;
             break;
         }
     }
-
-    s->field = s->model == IngenicLcdModelDeltaRGB && !s->field;
 }
 
 static void ingenic_lcd_update_display(void *opaque)
 {
     IngenicLcd *s = INGENIC_LCD(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
+    lcd_dma_channel_t dma[2];
+    dma[0].bpp = 0;
+    dma[1].bpp = 0;
 
-    uint32_t src_width = 0;
+    // uint32_t src_bpp = 0;
     switch (s->mode) {
+    case 4555:
+    case 4565:
+        dma[0].bpp = 4;
+        dma[1].bpp = 16;
+        break;
+    case 555:
     case 565:
-        src_width = s->xres * 2;
+        dma[0].bpp = 16;
         break;
     case 666:
     case 888:
-        src_width = s->xres * 4;
+        dma[0].bpp = 32;
         break;
     default:
-        //qemu_log_mask(LOG_GUEST_ERROR, "%s: bad source color depth\n", __func__);
+        // qemu_log_mask(LOG_GUEST_ERROR, "%s: bad source color depth\n", __func__);
         return;
     }
 
-    uint32_t dest_width = 0;
-    switch (surface_bits_per_pixel(surface)) {
-    case 8:
-        dest_width = s->xres;
-        break;
-    case 15:
-    case 16:
-        dest_width = s->xres * 2;
-        break;
-    case 24:
-        dest_width = s->xres * 3;
-        break;
-    case 32:
-        dest_width = s->xres * 4;
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: bad surface color depth\n", __func__);
-        return;
-    }
+    void *dst = surface_data(surface);
+    int dst_stride = surface_stride(surface);
+    int dst_bpp = surface_bits_per_pixel(surface);
 
     // Find a framebuffer from descriptor chain
-    for (;;) {
-        uint32_t idesc = 0;
-        uint32_t da = s->desc[idesc].lcdda;
-        uint32_t desc[8];
-        uint32_t nwords = s->lcdcfg & BIT(28) ? 8 : 4;
-        cpu_physical_memory_read(da, &desc[0], 4 * nwords);
-        s->desc[idesc].lcdda  = desc[0];
-        s->desc[idesc].lcdsa  = desc[1];
-        s->desc[idesc].lcdfid = desc[2];
-        s->desc[idesc].lcdcmd = desc[3];
-        if (nwords == 8) {
-            s->desc[idesc].lcdoffs    = desc[4];
-            s->desc[idesc].lcdpw      = desc[5];
-            s->desc[idesc].lcdcnum    = desc[6];
-            s->desc[idesc].lcddessize = desc[7];
-        }
+    int num_dma = 2;
+    for (uint32_t idma = 0; idma < num_dma; idma++) {
+        for (;;) {
+            uint32_t da = s->desc[idma].lcdda;
+            uint32_t desc[8];
+            uint32_t nwords = s->lcdcfg & BIT(28) ? 8 : 4;
+            cpu_physical_memory_read(da, &desc[0], 4 * nwords);
+            s->desc[idma].lcdda  = desc[0];
+            s->desc[idma].lcdsa  = desc[1];
+            s->desc[idma].lcdfid = desc[2];
+            s->desc[idma].lcdcmd = desc[3];
+            if (nwords == 8) {
+                s->desc[idma].lcdoffs    = desc[4];
+                s->desc[idma].lcdpw      = desc[5];
+                s->desc[idma].lcdcnum    = desc[6];
+                s->desc[idma].lcddessize = desc[7];
+            }
 
-        trace_ingenic_lcd_desc(s->desc[idesc].lcdda,   s->desc[idesc].lcdsa,
-                               s->desc[idesc].lcdfid,  s->desc[idesc].lcdcmd,
-                               s->desc[idesc].lcdoffs, s->desc[idesc].lcdpw,
-                               s->desc[idesc].lcdcnum, s->desc[idesc].lcddessize);
+            trace_ingenic_lcd_desc(s->desc[idma].lcdda, s->desc[idma].lcdsa,
+                s->desc[idma].lcdfid,  s->desc[idma].lcdcmd,
+                s->desc[idma].lcdoffs, s->desc[idma].lcdpw,
+                s->desc[idma].lcdcnum, s->desc[idma].lcddessize);
 
-        if (s->lcdcfg & BIT(28)) {
-            uint32_t xres = s->desc[idesc].lcddessize & 0xffff;
-            uint32_t yres = s->desc[idesc].lcddessize >> 16;
-            if (xres != s->xres || yres != s->yres) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "%s: Descriptor size mismatch 0x%"PRIx32"\n",
-                              __func__, s->desc[idesc].lcddessize);
-                qmp_stop(NULL);
+            if (s->lcdcfg & BIT(28)) {
+                uint32_t xres = s->desc[idma].lcddessize & 0xffff;
+                uint32_t yres = s->desc[idma].lcddessize >> 16;
+                if (xres != s->xres || yres != s->yres) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                "%s: Descriptor size mismatch 0x%"PRIx32"\n",
+                                __func__, s->desc[idma].lcddessize);
+                    qmp_stop(NULL);
+                    continue;
+                }
+            }
+
+            if (s->desc[idma].lcdcmd & BIT(31)) {
+                // SOFINT Start of frame interrupt
+                s->lcdstate |= BIT(4);
+                ingenic_lcd_update_irq(s);
+            }
+
+            dma[idma].mem = memory_region_find(get_system_memory(),
+                s->desc[idma].lcdsa, (s->desc[idma].lcdcmd & 0x00ffffff) * 4);
+            if (dma[idma].mem.mr)
+                dma[idma].src = memory_region_get_ram_ptr(dma[idma].mem.mr) +
+                    dma[idma].mem.offset_within_region;
+
+            if (s->desc[idma].lcdcmd & BIT(28)) {
+                // Palette buffer data
+                uint32_t len = (s->desc[idma].lcdcmd & 0x00ffffff) * 4;
+                len = MIN(len, sizeof(s->palette));
+                if (dma[idma].mem.mr)
+                    memcpy(&s->palette[0], dma[idma].src, len);
                 continue;
             }
+            break;
         }
+    }
 
-        if (s->desc[0].lcdcmd & BIT(31)) {
-            // SOFINT Start of frame interrupt
-            s->lcdstate |= BIT(4);
-            ingenic_lcd_update_irq(s);
-        }
+    for (int y = 0; y < s->yres; y++)
+        ingenic_lcd_draw_row(s, y, dst, dst_stride, dst_bpp, dma);
 
-        framebuffer_update_memory_section(&s->fbsection, get_system_memory(),
-                                          s->desc[idesc].lcdsa,
-                                          s->yres, src_width);
+    for (uint32_t idma = 0; idma < num_dma; idma++) {
+        memory_region_unref(dma[idma].mem.mr);
 
-        if (s->desc[0].lcdcmd & BIT(30)) {
+        if (s->desc[idma].lcdcmd & BIT(30)) {
             // EOFINT End of frame interrupt
             s->lcdstate |= BIT(5);
             ingenic_lcd_update_irq(s);
         }
-
-        break;
     }
 
-    int first = 0, last = 0;
-    framebuffer_update_display(surface, &s->fbsection,
-                               s->xres, s->yres,
-                               src_width, dest_width, 0, s->invalidate,
-                               &draw_row, s, &first, &last);
-    dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
-
-    s->invalidate = false;
-}
-
-static void ingenic_lcd_invalidate_display(void * opaque)
-{
-    IngenicLcd *s = INGENIC_LCD(opaque);
-    s->invalidate = true;
+    dpy_gfx_update(s->con, 0, 0, s->xres, s->yres);
 }
 
 static const GraphicHwOps fb_ops = {
-    .invalidate = ingenic_lcd_invalidate_display,
     .gfx_update = ingenic_lcd_update_display,
 };
 
@@ -334,8 +374,11 @@ static void ingenic_lcd_enable(IngenicLcd *s, bool en)
 
     // TODO: Check OSD mode
     switch (s->lcdctrl & 7) {
+    case 0b010:
+        s->mode = (s->lcdctrl & BIT(27)) ? 4555 : 4565;
+        break;
     case 0b100:
-        s->mode = 565;
+        s->mode = (s->lcdctrl & BIT(27)) ? 555 : 565;
         break;
     case 0b101:
         s->mode = 888;
@@ -612,11 +655,7 @@ static void ingenic_lcd_class_init(ObjectClass *class, const void *data)
     DeviceClass *dc = DEVICE_CLASS(class);
     device_class_set_props(dc, ingenic_lcd_properties);
     dc->realize = ingenic_lcd_realize;
-    IngenicLcdClass *bch_class = INGENIC_LCD_CLASS(class);
+
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_lcd_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = ingenic_lcd_reset;
 }
