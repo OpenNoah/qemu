@@ -35,6 +35,13 @@ config NOAH_NP6800
     select FIXED_IRQ
     select GPIO_MATRIX_KEYPAD
 
+config NOAH_NP7000
+    bool
+    default y
+    depends on MIPS
+    select INGENIC_JZ4755
+    select GPIO_MATRIX_KEYPAD
+
 config IRIVER_D88
     bool
     default y
