@@ -227,10 +227,10 @@ static void ingenic_msc_start(IngenicMsc *s)
         }
     }
 
-    // Workaround for ingenic kernel code
-    // It expects PRG_DONE after CMD12 regardless of read/write
     if (request.cmd == 12)
         s->reg.ireg |= BIT(1);
+    // PRG_DONE is expected regardless of read/write
+    s->reg.stat |= BIT(13);
 
     ingenic_msc_update_irq(s);
     return;
@@ -307,6 +307,10 @@ static uint64_t ingenic_msc_read(void *opaque, hwaddr addr, unsigned size)
     IngenicMsc *s = INGENIC_MSC(opaque);
     uint64_t data = 0;
     switch (addr) {
+    case REG_CTRL:
+        // Buggy software may try to read this register
+        data = 0;
+        break;
     case REG_STAT:
         data = s->reg.stat;
         break;
