@@ -26,6 +26,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/datadir.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/system.h"
 
@@ -300,6 +302,22 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     qdev_connect_gpio_out(nand_rb_splitter, 1,
         qdev_get_gpio_in_named(DEVICE(dmac), "req-in", 1));
 #endif
+
+    // 0x1fc00000 On-chip Boot ROM (8KiB)
+    MemoryRegion *bootrom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(bootrom, NULL, "bootrom", 8 * 1024, &error_fatal);
+    memory_region_add_subregion(sys_mem, 0x1fc00000, bootrom);
+    // Load bootrom image
+    char *bootrom_file = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+    ssize_t bootrom_size = -1;
+    if (bootrom_file) {
+        bootrom_size = load_image_mr(bootrom_file, bootrom);
+        g_free(bootrom_file);
+    }
+    if (bootrom_size < 0 && machine->firmware) {
+        error_report("Could not load MIPS bios '%s'", machine->firmware);
+        exit(1);
+    }
 
     return soc;
 }
