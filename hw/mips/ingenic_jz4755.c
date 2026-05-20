@@ -157,6 +157,7 @@ IngenicJZ4755 *ingenic_jz4755_init(MachineState *machine)
 
     // 0x1000204C Register TCU/OST/WDT on APB
     IngenicTcu *tcu = INGENIC_TCU(qdev_new(TYPE_INGENIC_TCU));
+    object_property_set_uint(OBJECT(tcu), "model", 0x4755, &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(tcu), &error_fatal);
     MemoryRegion *tcu_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(tcu), 0);
     memory_region_add_subregion(apb, 0x00002000, tcu_mr);

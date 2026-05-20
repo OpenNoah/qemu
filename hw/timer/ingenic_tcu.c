@@ -80,7 +80,15 @@ static void update_irq(IngenicTcu *s)
     if (irq != s->irq_state) {
         s->irq_state = irq;
         trace_ingenic_tcu_irq(irq);
-        if (s->model == 0x4755) {
+        if (s->model == 0x4751) {   // JZ4750L
+            // Guessed from BBK software behaviour
+            // OST uses interrupt 0
+            qemu_set_irq(s->irq[0], !!(irq & 0x00008000));
+            // Timer 0 uses interrupt 1
+            qemu_set_irq(s->irq[1], !!(irq & 0x00010001));
+            // Timer 1-5 uses interrupt 2
+            qemu_set_irq(s->irq[2], !!(irq & 0x003e003e));
+        } else if (s->model >= 0x4750) {
             // OST uses interrupt 0
             qemu_set_irq(s->irq[0], !!(irq & 0x00008000));
             // Timer 5 uses interrupt 1
@@ -291,8 +299,6 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
             data = s->tcu.ter;
             break;
         case REG_TESR:
-            data = 0;   // Write-only
-            break;
         case REG_TECR:
             data = 0;   // Write-only
             break;
@@ -301,6 +307,10 @@ static uint64_t ingenic_tcu_read(void *opaque, hwaddr addr, unsigned size)
             break;
         case REG_TFR:
             data = s->tcu.tfr;
+            break;
+        case REG_TFSR:
+        case REG_TFCR:
+            data = 0;   // Write-only
             break;
         case REG_TMR:
             data = s->tcu.tmr;
@@ -376,10 +386,16 @@ static void ingenic_tcu_write(void *opaque, hwaddr addr, uint64_t data, unsigned
             s->tcu.tsr &= ~data & 0x000180ff;
             break;
         case REG_TMSR:
-            s->tcu.tmr |=  data & 0x00ff80ff;
+            if (s->model >= 0x4750)
+                s->tcu.tmr |= data & 0x003f803f;
+            else
+                s->tcu.tmr |= data & 0x00ff80ff;
             break;
         case REG_TMCR:
-            s->tcu.tmr &= ~data & 0x00ff80ff;
+            if (s->model >= 0x4750)
+                s->tcu.tmr &= ~data & 0x003f803f;
+            else
+                s->tcu.tmr &= ~data & 0x00ff80ff;
             break;
 
         case REG_OSTDR:
