@@ -179,7 +179,7 @@ const mips_def_t mips_defs[] =
     },
     {
         .name = "JZ4750",
-        .CP0_PRid = 0x0ad0024f,
+        .CP0_PRid = 0x1ed0024f,
         .CP0_Config0 = MIPS_CONFIG0 | (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (31 << CP0C1_MMU) |
                        (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
