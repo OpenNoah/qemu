@@ -64,6 +64,7 @@ static void ingenic_msc_reset(Object *obj, ResetType type)
     s->reg.stat  = BIT(6);
     s->reg.clkrt = 0;
     s->reg.cmdat = 0;
+    s->reg.rdto = 0x00ffffff;
     s->reg.imask = 0xffff;
     if (s->model == 0x47ff)
         s->reg.ireg  = 0x2000;
@@ -231,6 +232,7 @@ static void ingenic_msc_start(IngenicMsc *s)
         s->reg.ireg |= BIT(1);
     // PRG_DONE is expected regardless of read/write
     s->reg.stat |= BIT(13);
+    s->reg.ireg |= BIT(1);
 
     ingenic_msc_update_irq(s);
     return;
@@ -239,7 +241,7 @@ err:
     // No response, timed out
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%u(0x%x) failed, expecting R%u\n",
         __func__, request.cmd, request.arg, rtype);
-    s->reg.stat = (s->reg.stat & stat_mask) | (BIT(11) | BIT(1));
+    s->reg.stat = (s->reg.stat & stat_mask) | BIT(11) | BIT(1);
     s->reg.ireg |= BIT(2);
     ingenic_msc_update_irq(s);
 }
@@ -380,6 +382,9 @@ static void ingenic_msc_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_CMDAT:
         s->reg.cmdat = data & 0x0003ffff;
+        break;
+    case REG_RDTO:
+        s->reg.rdto = data;
         break;
     case REG_BLKLEN:
         s->reg.blklen = data & 0xffff;

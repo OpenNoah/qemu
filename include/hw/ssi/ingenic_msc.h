@@ -61,6 +61,7 @@ typedef struct IngenicMsc
         uint32_t stat;      // 0x04
         uint8_t  clkrt;     // 0x08
         uint32_t cmdat;     // 0x0c
+        uint32_t rdto;      // 0x14
         uint16_t blklen;    // 0x18
         uint16_t nob;       // 0x1c
         uint16_t snob;      // 0x20
