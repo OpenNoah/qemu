@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "migration/vmstate.h"
 #include "hw/core/sysbus.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/rtc/ingenic_rtc.h"
 #include "trace.h"
 
@@ -157,13 +158,15 @@ static void ingenic_rtc_finalize(Object *obj)
 {
 }
 
+static const Property ingenic_rtc_properties[] = {
+    DEFINE_PROP_UINT32("hspr", IngenicRtc, hspr, 0),
+};
+
 static void ingenic_rtc_class_init(ObjectClass *class, const void *data)
 {
-    IngenicRtcClass *bch_class = INGENIC_RTC_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(class);
+    device_class_set_props(dc, ingenic_rtc_properties);
+
     ResettableClass *rc = RESETTABLE_CLASS(class);
-    resettable_class_set_parent_phases(rc,
-                                       ingenic_rtc_reset,
-                                       NULL,
-                                       NULL,
-                                       &bch_class->parent_phases);
+    rc->phases.enter = &ingenic_rtc_reset;
 }

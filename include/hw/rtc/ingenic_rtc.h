@@ -53,7 +53,6 @@ typedef struct IngenicRtc
 typedef struct IngenicRtcClass
 {
     SysBusDeviceClass parent_class;
-    ResettablePhases parent_phases;
 } IngenicRtcClass;
 
 #endif /* INGENIC_RTC_H */
