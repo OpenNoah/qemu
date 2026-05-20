@@ -14,6 +14,7 @@ mips_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('cps.c'))
 mips_ss.add(when: 'CONFIG_INGENIC_JZ4720', if_true: files('ingenic_jz4720.c'))
 mips_ss.add(when: 'CONFIG_INGENIC_JZ4740', if_true: files('ingenic_jz4740.c'))
 mips_ss.add(when: 'CONFIG_INGENIC_JZ4750', if_true: files('ingenic_jz4750.c'))
+mips_ss.add(when: 'CONFIG_INGENIC_JZ4750L', if_true: files('ingenic_jz4750l.c'))
 mips_ss.add(when: 'CONFIG_INGENIC_JZ4755', if_true: files('ingenic_jz4755.c'))
 
 if 'CONFIG_TCG' in config_all_accel

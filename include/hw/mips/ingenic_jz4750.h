@@ -41,5 +41,6 @@ typedef struct IngenicJZ4750 {
 } IngenicJZ4750;
 
 IngenicJZ4750 *ingenic_jz4750_init(MachineState *machine);
+IngenicJZ4750 *ingenic_jz4750l_init(MachineState *machine);
 
 #endif

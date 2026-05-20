@@ -111,6 +111,10 @@ config INGENIC_JZ4750
     select INGENIC_AIC
     select INGENIC_UDC
 
+config INGENIC_JZ4750L
+    bool
+    select INGENIC_JZ4750
+
 config INGENIC_JZ4755
     bool
     select SPLIT_IRQ
