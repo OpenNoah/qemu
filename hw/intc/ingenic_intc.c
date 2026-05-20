@@ -70,6 +70,12 @@ static uint64_t ingenic_intc_read(void *opaque, hwaddr addr, unsigned size)
     case REG_ICMR:
         data = s->icmr;
         break;
+    case REG_ICMSR: // Buggy software may read this address
+        data = 0;
+        break;
+    case REG_ICMCR: // Buggy software may read this address
+        data = 0;
+        break;
     case REG_ICPR:
         data = s->icpr;
         break;
