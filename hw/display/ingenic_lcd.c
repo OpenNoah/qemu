@@ -275,17 +275,18 @@ static void ingenic_lcd_update_display(void *opaque)
                 s->desc[idma].lcdoffs, s->desc[idma].lcdpw,
                 s->desc[idma].lcdcnum, s->desc[idma].lcddessize);
 
-            if (s->lcdcfg & BIT(28)) {
-                uint32_t xres = s->desc[idma].lcddessize & 0xffff;
-                uint32_t yres = s->desc[idma].lcddessize >> 16;
-                if (xres != s->xres || yres != s->yres) {
-                    qemu_log_mask(LOG_GUEST_ERROR,
-                                "%s: Descriptor size mismatch 0x%"PRIx32"\n",
-                                __func__, s->desc[idma].lcddessize);
-                    qmp_stop(NULL);
-                    continue;
-                }
-            }
+            // TOOD
+            // if (s->lcdcfg & BIT(28)) {
+            //     uint32_t xres = s->desc[idma].lcddessize & 0xffff;
+            //     uint32_t yres = s->desc[idma].lcddessize >> 16;
+            //     if (xres != s->xres || yres != s->yres) {
+            //         qemu_log_mask(LOG_GUEST_ERROR,
+            //                     "%s: Descriptor size mismatch 0x%"PRIx32"\n",
+            //                     __func__, s->desc[idma].lcddessize);
+            //         qmp_stop(NULL);
+            //         continue;
+            //     }
+            // }
 
             if (s->desc[idma].lcdcmd & BIT(31)) {
                 // SOFINT Start of frame interrupt
@@ -565,6 +566,9 @@ static void ingenic_lcd_write(void *opaque, hwaddr addr, uint64_t data, unsigned
         break;
     case REG_LCDOSDCTRL:
         s->lcdosdctrl = data & 0x801f;
+        break;
+    case REG_LCDOSDS:
+        s->lcdosds = data & 0xcc00;
         break;
     case REG_LCDBGC:
         s->lcdbgc = data & 0x00ffffff;
