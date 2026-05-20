@@ -19,6 +19,14 @@ config GGV_AONE
     depends on MIPS
     select INGENIC_JZ4720
 
+config BBK_IBOXH2
+    bool
+    default y
+    depends on MIPS
+    select INGENIC_JZ4750L
+    select FIXED_IRQ
+    select GPIO_MATRIX_KEYPAD
+
 config NOAH_NP1380
     bool
     default y
