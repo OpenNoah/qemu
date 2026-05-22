@@ -209,14 +209,16 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     ingenic_uart_init(apb, 0x00032000, NULL,
         115200, serial_hd(2), DEVICE_NATIVE_ENDIAN);
 
-#if 0
+    // 0x10033000 Register 16550 UART2 on APB
+    ingenic_uart_init(apb, 0x00033000, NULL,
+        115200, serial_hd(3), DEVICE_NATIVE_ENDIAN);
+
     // 0x10042000 Register I2C on APB
     IngenicI2c *i2c = INGENIC_I2C(qdev_new(TYPE_INGENIC_I2C));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(i2c), &error_fatal);
     MemoryRegion *i2c_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(i2c), 0);
     memory_region_add_subregion(apb, 0x00042000, i2c_mr);
     soc->i2c = I2C_BUS(qdev_get_child_bus(DEVICE(i2c), "i2c"));
-#endif
 
     // 0x10070000 Register ADC on APB bus
     IngenicAdc *adc = INGENIC_ADC(qdev_new(TYPE_INGENIC_ADC));
@@ -256,10 +258,10 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
     } irqs[] = {
         {DEVICE(lcd), "irq-out", 0, 30},
         // 29 IPU
-        {DEVICE(gpio['A' - 'A']), "irq-out",  0, 28},
-        {DEVICE(gpio['B' - 'A']), "irq-out",  0, 27},
-        {DEVICE(gpio['C' - 'A']), "irq-out",  0, 26},
-        {DEVICE(gpio['D' - 'A']), "irq-out",  0, 25},
+        {DEVICE(gpio['A' - 'A']), "irq-out", 0, 28},
+        {DEVICE(gpio['B' - 'A']), "irq-out", 0, 27},
+        {DEVICE(gpio['C' - 'A']), "irq-out", 0, 26},
+        {DEVICE(gpio['D' - 'A']), "irq-out", 0, 25},
         // 24 UDC
         {DEVICE(tcu),  "irq-out", 0, 23},
         {DEVICE(tcu),  "irq-out", 1, 22},
@@ -269,8 +271,8 @@ IngenicJZ4740 *ingenic_jz4740_init(MachineState *machine)
         // 17 CIM
         // 16 SSI
         // 15 RTC
-        {DEVICE(msc),  "irq-out",  0, 14},
-        {DEVICE(adc),  "irq-out",  0, 12},
+        {DEVICE(msc),  "irq-out", 0, 14},
+        {DEVICE(adc),  "irq-out", 0, 12},
         // 2 EMC
         // 1 I2C
     };
