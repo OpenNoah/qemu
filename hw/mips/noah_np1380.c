@@ -73,8 +73,6 @@ static void mips_noah_np1380_init(MachineState *machine)
 
     // Keypad matrix
     GpioMatrixKeypad *kp = GPIO_MATRIX_KEYPAD(qdev_new(TYPE_GPIO_MATRIX_KEYPAD));
-    // Extra row+col used to implement power key
-    // TODO implement proper GPIO keypad
     object_property_set_uint(OBJECT(kp), "num-rows", 3, &error_fatal);
     object_property_set_uint(OBJECT(kp), "num-cols", 4, &error_fatal);
     object_property_set_uint(OBJECT(kp), "num-pins", 32, &error_fatal);
@@ -143,9 +141,9 @@ static void mips_noah_np1380_machine_init(MachineClass *mc)
 {
     mc->desc = "MIPS Noah NP1380 platform";
     mc->init = mips_noah_np1380_init;
-    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("XBurstR1");
-    mc->default_ram_id = "mips_noah_np1380.ram";
-    mc->default_ram_size = 16 * 1024;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("JZ4740");
+    mc->default_ram_id = "unused";
+    mc->default_ram_size = 0;
 }
 
 DEFINE_MACHINE("noah_np1380", mips_noah_np1380_machine_init)
